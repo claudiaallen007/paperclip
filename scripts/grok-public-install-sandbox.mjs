@@ -1,7 +1,7 @@
 // Keep public-package lifecycle code off the verification host. Resolve and
 // cache the public npm graph without scripts, then execute it offline.
 export const GROK_PUBLIC_INSTALL_IMAGE =
-  'node:24-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe';
+  'node:24-trixie@sha256:be40f6a87b9b22215ddb20da0a2320a5c6d583fe3ee3b0024d9fa4f05b40c8fd';
 // Complete the scripts-disabled install without resolving the graph again.
 export const GROK_PUBLIC_INSTALL_LIFECYCLE = [
   'npm', 'rebuild', '--offline', '--ignore-scripts=false', '--dangerously-allow-all-scripts',
@@ -19,6 +19,7 @@ export function grokConsumerDockerArgs({ assets, consumer, cache, command, uid, 
     '--network', download ? 'bridge' : 'none',
     '--tmpfs', '/tmp:rw,nosuid,nodev,size=256m,mode=1777',
     '--env', 'HOME=/tmp', '--env', 'npm_config_cache=/cache',
+    '--env', 'npm_config_nodedir=/usr/local',
     '--env', 'npm_config_audit=false', '--env', 'npm_config_fund=false',
     '--env', `npm_config_ignore_scripts=${download ? 'true' : 'false'}`,
     '--mount', `type=bind,src=${assets},dst=/packages,readonly`,

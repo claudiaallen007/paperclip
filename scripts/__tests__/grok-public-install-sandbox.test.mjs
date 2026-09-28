@@ -17,7 +17,7 @@ test('lifecycle execution has no network, host credentials, checkout, or elevate
     'type=bind,src=/private/staging/consumer,dst=/consumer',
     'type=bind,src=/private/staging/cache,dst=/cache',
   ]);
-  assert.deepEqual(values(args, '--env'), ['HOME=/tmp', 'npm_config_cache=/cache', 'npm_config_audit=false', 'npm_config_fund=false', 'npm_config_ignore_scripts=false']);
+  assert.deepEqual(values(args, '--env'), ['HOME=/tmp', 'npm_config_cache=/cache', 'npm_config_nodedir=/usr/local', 'npm_config_audit=false', 'npm_config_fund=false', 'npm_config_ignore_scripts=false']);
   assert.match(GROK_PUBLIC_INSTALL_IMAGE, /@sha256:[a-f0-9]{64}$/);
 });
 
