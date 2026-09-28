@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { GROK_PUBLIC_INSTALL_IMAGE, GROK_PUBLIC_INSTALL_LIFECYCLE, grokConsumerDockerArgs } from '../grok-public-install-sandbox.mjs';
 
@@ -38,8 +39,14 @@ test('only the scripts-disabled dependency download gets network access', () => 
 });
 
 test('the separately provisioned executable is exposed read-only to the offline probe', () => {
-  const prerequisite = '/opt/paperclip/providers/grok/1.0.13/grok';
+  const prerequisite = '/private/staging/native/grok';
   const args = grokConsumerDockerArgs({ ...paths, prerequisite, command: ['node', '/packages/probe.mjs', 'present'] });
   assert.deepEqual(values(args, '--network'), ['none']);
-  assert.equal(values(args, '--mount').at(-1), `type=bind,src=${prerequisite},dst=${prerequisite},readonly`);
+  assert.equal(values(args, '--mount').at(-1), `type=bind,src=${prerequisite},dst=/opt/paperclip/providers/grok/1.0.13/grok,readonly`);
+});
+
+test('verification never elevates PR-controlled provisioning or cleanup on the host', () => {
+  const source = readFileSync(new URL('../verify-grok-npm-install.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\bsudo\b/);
+  assert.ok(source.includes("const prerequisite = join(root, 'native/grok')"));
 });

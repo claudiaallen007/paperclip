@@ -11,15 +11,13 @@ import { fileURLToPath } from 'node:url';
 import { materializePublishManifest, prepareBundledPackage } from './prepare-bundled-package.mjs';
 import { GROK_PUBLIC_INSTALL_IMAGE, GROK_PUBLIC_INSTALL_LIFECYCLE, grokConsumerDockerArgs } from './grok-public-install-sandbox.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const prerequisite = '/opt/paperclip/providers/grok/1.0.13/grok';
 assert.equal(process.platform, 'linux', 'Run this verification on disposable EC2 Linux, not a developer host');
-assert.equal(existsSync(prerequisite), false, 'Refuse to overwrite a pre-existing sandbox prerequisite');
 const root = mkdtempSync(join(tmpdir(), 'paperclip-grok-public-install-'));
+const prerequisite = join(root, 'native/grok');
 const env = { ...process.env, NODE_PATH: '', PAPERCLIP_RELEASE_REUSE_UI_DIST: '1', npm_config_ignore_scripts: 'false', npm_config_audit: 'false', npm_config_fund: 'false' };
 const run = (cmd, args, cwd = root) => execFileSync(cmd, args, { cwd, env, stdio: 'pipe', maxBuffer: 32 * 1024 * 1024 });
 const sourceRevision = run('git', ['rev-parse', 'HEAD'], repo).toString().trim();
 const releaseVersion = `0.0.0-grok-verify.${sourceRevision.slice(0, 12)}`;
-let provisioned = false;
 try {
   const listing = run(process.execPath, [join(repo, 'scripts/release-package-map.mjs'), 'list'], repo).toString().trim().split('\n').map(line => line.split('\t'));
   const packages = new Map(listing.map(([dir, name]) => [name, { dir, manifest: JSON.parse(readFileSync(join(repo, dir, 'package.json'), 'utf8')) }]));
@@ -112,11 +110,11 @@ try {
   `;
   writeFileSync(join(assets, 'probe.mjs'), probe, { mode: 0o644 });
   isolated(['node', '/packages/probe.mjs', 'missing']);
-  provisioned = true;
-  run('sudo', [process.execPath, join(repo, 'packages/paperclip-runner/scripts/provision-grok.mjs'), prerequisite]);
+  // Provision as the unprivileged verification user, never into the host's /opt.
+  // Only the positive probe sees this file at the canonical sandbox path.
+  run(process.execPath, [join(repo, 'packages/paperclip-runner/scripts/provision-grok.mjs'), prerequisite]);
   isolated(['node', '/packages/probe.mjs', 'present'], { prerequisite });
   console.log(JSON.stringify({ schema: 'paperclip.grok.public-npm-install.v1', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, lifecycleSentinelVerified: true, lifecycleNetwork: 'none', consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerUid, consumerLockPreserved: true, cleanNpmInstall: true, packageCount: needed.size, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
 } finally {
-  if (provisioned) run('sudo', ['rm', '-f', prerequisite]);
   rmSync(root, { recursive: true, force: true });
 }

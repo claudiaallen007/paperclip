@@ -122,10 +122,10 @@ clean install with offline `npm rebuild`, running the deferred lifecycle hooks
 without re-resolving bundled optional dependencies. Networking stays disabled,
 the lockfile must remain unchanged, and a sentinel proves scripts actually ran.
 The pinned image includes native build tools and local Node headers so dependency
-hooks can compile without network access;
-both executable
-admission probes run in the same isolation. Only the separately provisioned Grok
-binary is mounted read-only for the positive probe.
+hooks can compile without network access. Both executable admission probes run
+in the same isolation. The verification user provisions Grok inside the disposable
+test directory without privilege elevation or host `/opt` changes. Only the
+positive probe mounts that binary read-only at the canonical sandbox path.
 
 
 The Cloud application image also carries the controller-owned provider pack and
