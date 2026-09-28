@@ -177,12 +177,16 @@ export function SidebarAccountMenu({
                 <h2 className="truncate text-base font-semibold text-foreground">{displayName}</h2>
                 <p className="truncate text-sm text-muted-foreground">{secondaryLabel}</p>
                 {stagingCommit ? (
-                  <p
-                    className="truncate font-mono text-(length:--text-micro) leading-(--profile-popover-meta-line-height) text-muted-foreground"
+                  <a
+                    className="block truncate font-mono text-(length:--text-micro) leading-(--profile-popover-meta-line-height) text-muted-foreground hover:underline focus-visible:underline"
+                    href={`https://github.com/paperclipai/paperclip/commit/${stagingCommit}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`View commit ${stagingCommit} on GitHub`}
                     title={stagingCommit}
                   >
                     SHA {stagingCommit.slice(0, 7)}
-                  </p>
+                  </a>
                 ) : null}
               </div>
             </div>

@@ -131,11 +131,13 @@ describe("SidebarAccountMenu", () => {
       });
       await flushReact();
 
-      const label = document.body.querySelector(`p[title="${commit}"]`);
+      const label = document.body.querySelector(`a[title="${commit}"]`);
       expect(Boolean(label)).toBe(visible);
       if (visible) {
         expect(label?.textContent).toBe("SHA 8751e2d");
         expect(label?.previousElementSibling?.textContent).toBe("jane@example.com");
+        expect(label?.getAttribute("href")).toBe(`https://github.com/paperclipai/paperclip/commit/${commit}`);
+        expect(label?.getAttribute("aria-label")).toBe(`View commit ${commit} on GitHub`);
         expect(mockHealthApi.get).toHaveBeenCalledOnce();
       } else {
         expect(mockHealthApi.get).not.toHaveBeenCalled();
@@ -172,6 +174,32 @@ describe("SidebarAccountMenu", () => {
       expect(document.body.textContent).toContain("SHA 3447609");
       expect(document.body.textContent).not.toContain("SHA 8751e2d");
       expect(mockHealthApi.get).toHaveBeenCalledTimes(2);
+      await act(() => root.unmount());
+      queryClient.clear();
+    });
+
+    it("does not change the board health state when a menu refresh fails", async () => {
+      vi.stubGlobal("location", new URL("https://paperclip.staging.paperclip.app"));
+      mockHealthApi.get.mockRejectedValueOnce(new Error("Deploy in progress"));
+      const queryClient = new QueryClient();
+      const boardHealth = { status: "ok", commit };
+      queryClient.setQueryData(queryKeys.health, boardHealth);
+      queryClient.setQueryData(queryKeys.stagingCommit, boardHealth);
+      const root = createRoot(container);
+      await act(() => {
+        root.render(
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider><AccountMenu open /></TooltipProvider>
+          </QueryClientProvider>,
+        );
+      });
+      await flushReact();
+
+      expect(mockHealthApi.get).toHaveBeenCalledOnce();
+      expect(queryClient.getQueryState(queryKeys.stagingCommit)?.status).toBe("error");
+      expect(queryClient.getQueryState(queryKeys.health)?.status).toBe("success");
+      expect(queryClient.getQueryData(queryKeys.health)).toEqual(boardHealth);
+      expect(document.body.textContent).not.toContain("SHA ");
       await act(() => root.unmount());
       queryClient.clear();
     });

@@ -1288,7 +1288,8 @@ Expected:
 - `/api/companies` returns a JSON array
 
 On `*.staging.paperclip.app`, the account menu shows the running server's
-short commit SHA below the user's email. Hover over it for the full SHA.
+short commit SHA below the user's email. Hover over it for the full SHA,
+or follow the link to inspect the commit on GitHub.
 Opening the menu refreshes `/api/health` so the label reflects recent deploys.
 The label is hidden on other hosts and when commit metadata is unavailable.
 
