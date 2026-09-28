@@ -2,6 +2,10 @@
 // cache the public npm graph without scripts, then execute it offline.
 export const GROK_PUBLIC_INSTALL_IMAGE =
   'node:24-trixie-slim@sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe';
+// Complete the scripts-disabled install without resolving the graph again.
+export const GROK_PUBLIC_INSTALL_LIFECYCLE = [
+  'npm', 'rebuild', '--offline', '--ignore-scripts=false', '--dangerously-allow-all-scripts',
+];
 
 export function grokConsumerDockerArgs({ assets, consumer, cache, command, uid, gid, download = false, prerequisite }) {
   if (!Number.isSafeInteger(uid) || uid <= 0 || !Number.isSafeInteger(gid) || gid <= 0) {

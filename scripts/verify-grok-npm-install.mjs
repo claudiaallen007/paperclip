@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { materializePublishManifest, prepareBundledPackage } from './prepare-bundled-package.mjs';
-import { GROK_PUBLIC_INSTALL_IMAGE, grokConsumerDockerArgs } from './grok-public-install-sandbox.mjs';
+import { GROK_PUBLIC_INSTALL_IMAGE, GROK_PUBLIC_INSTALL_LIFECYCLE, grokConsumerDockerArgs } from './grok-public-install-sandbox.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const prerequisite = '/opt/paperclip/providers/grok/1.0.13/grok';
 assert.equal(process.platform, 'linux', 'Run this verification on disposable EC2 Linux, not a developer host');
@@ -68,13 +68,26 @@ try {
   for (const tarball of tarballs) {
     const destination = join(assets, basename(tarball)); cpSync(tarball, destination); chmodSync(destination, 0o644);
   }
+  // Prove lifecycle execution is real even if npm changes its script defaults.
+  const sentinelSource = join(root, 'lifecycle-sentinel'); mkdirSync(sentinelSource);
+  writeFileSync(join(sentinelSource, 'package.json'), JSON.stringify({
+    name: 'paperclip-verification-lifecycle-sentinel', version: '1.0.0', private: true,
+    scripts: { postinstall: 'node -e "require(\'node:fs\').writeFileSync(\'lifecycle-ran\', \'ok\')"' },
+  }));
+  run('npm', ['pack', '--ignore-scripts', '--pack-destination', assets], sentinelSource);
+  const sentinel = join(consumer, 'node_modules/paperclip-verification-lifecycle-sentinel/lifecycle-ran');
   const consumerUid = process.getuid();
   const isolated = (command, options = {}) => run('docker', grokConsumerDockerArgs({ assets, consumer, cache, uid: consumerUid, gid: process.getgid(), command, ...options }));
   // npm resolution is intentionally the public consumer graph, not the pnpm
   // workspace graph. Freeze that result before any lifecycle script can run.
-  isolated(['npm', 'install', '--ignore-scripts', '--omit=dev', ...tarballs.map(file => `/packages/${basename(file)}`)], { download: true });
+  isolated(['npm', 'install', '--ignore-scripts', '--omit=dev', ...readdirSync(assets).filter(file => file.endsWith('.tgz')).map(file => `/packages/${file}`)], { download: true });
+  assert.equal(existsSync(sentinel), false, 'Dependency download must not run lifecycle scripts');
   const consumerLock = readFileSync(join(consumer, 'package-lock.json'), 'utf8');
-  isolated(['npm', 'ci', '--offline', '--ignore-scripts=false', '--omit=dev']);
+  // npm ci rejects bundled optional platform dependencies absent from its own
+  // generated lock. Rebuild runs the deferred install hooks on the installed
+  // graph without re-resolving it; network isolation and lock checks still hold.
+  isolated(GROK_PUBLIC_INSTALL_LIFECYCLE);
+  assert.equal(readFileSync(sentinel, 'utf8'), 'ok', 'Offline lifecycle scripts must actually execute');
   assert.equal(readFileSync(join(consumer, 'package-lock.json'), 'utf8'), consumerLock, 'Lifecycle execution must preserve the resolved consumer lock');
   for (const name of needed) {
     const installedManifest = JSON.parse(readFileSync(join(consumer, 'node_modules', name, 'package.json'), 'utf8'));
@@ -102,7 +115,7 @@ try {
   provisioned = true;
   run('sudo', [process.execPath, join(repo, 'packages/paperclip-runner/scripts/provision-grok.mjs'), prerequisite]);
   isolated(['node', '/packages/probe.mjs', 'present'], { prerequisite });
-  console.log(JSON.stringify({ schema: 'paperclip.grok.public-npm-install.v1', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, lifecycleNetwork: 'none', consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerUid, consumerLockPreserved: true, cleanNpmInstall: true, packageCount: needed.size, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
+  console.log(JSON.stringify({ schema: 'paperclip.grok.public-npm-install.v1', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, lifecycleSentinelVerified: true, lifecycleNetwork: 'none', consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerUid, consumerLockPreserved: true, cleanNpmInstall: true, packageCount: needed.size, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
 } finally {
   if (provisioned) run('sudo', ['rm', '-f', prerequisite]);
   rmSync(root, { recursive: true, force: true });

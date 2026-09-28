@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GROK_PUBLIC_INSTALL_IMAGE, grokConsumerDockerArgs } from '../grok-public-install-sandbox.mjs';
+import { GROK_PUBLIC_INSTALL_IMAGE, GROK_PUBLIC_INSTALL_LIFECYCLE, grokConsumerDockerArgs } from '../grok-public-install-sandbox.mjs';
 
 const paths = { assets: '/private/staging/assets', consumer: '/private/staging/consumer', cache: '/private/staging/cache', uid: 1001, gid: 1001 };
 const values = (args, flag) => args.flatMap((value, index) => value === flag ? [args[index + 1]] : []);
 
 test('lifecycle execution has no network, host credentials, checkout, or elevated privileges', () => {
-  const args = grokConsumerDockerArgs({ ...paths, command: ['npm', 'ci', '--offline', '--ignore-scripts=false', '--omit=dev'] });
+  const args = grokConsumerDockerArgs({ ...paths, command: GROK_PUBLIC_INSTALL_LIFECYCLE });
   assert.deepEqual(values(args, '--network'), ['none']);
   assert.deepEqual(values(args, '--user'), ['1001:1001']);
   assert.ok(args.includes('--read-only'));
@@ -19,6 +19,10 @@ test('lifecycle execution has no network, host credentials, checkout, or elevate
   ]);
   assert.deepEqual(values(args, '--env'), ['HOME=/tmp', 'npm_config_cache=/cache', 'npm_config_audit=false', 'npm_config_fund=false', 'npm_config_ignore_scripts=false']);
   assert.match(GROK_PUBLIC_INSTALL_IMAGE, /@sha256:[a-f0-9]{64}$/);
+});
+
+test('deferred lifecycle execution rebuilds the installed graph without dependency resolution', () => {
+  assert.deepEqual(GROK_PUBLIC_INSTALL_LIFECYCLE, ['npm', 'rebuild', '--offline', '--ignore-scripts=false', '--dangerously-allow-all-scripts']);
 });
 
 test('a root or malformed host identity cannot run lifecycle scripts', () => {

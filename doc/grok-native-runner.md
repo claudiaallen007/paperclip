@@ -117,8 +117,11 @@ Product E2E remains behind the protected default-branch workflow and environment
 
 The public npm consumer check uses a digest-pinned, unprivileged container with
 no checkout or credentials mounted. It downloads dependencies with lifecycle
-scripts disabled and freezes the resulting consumer lockfile. The clean install
-then enables lifecycle scripts offline with networking disabled; both executable
+scripts disabled and freezes the resulting consumer lockfile. It completes the
+clean install with offline `npm rebuild`, running the deferred lifecycle hooks
+without re-resolving bundled optional dependencies. Networking stays disabled,
+the lockfile must remain unchanged, and a sentinel proves scripts actually ran;
+both executable
 admission probes run in the same isolation. Only the separately provisioned Grok
 binary is mounted read-only for the positive probe.
 
