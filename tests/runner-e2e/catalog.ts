@@ -1,3 +1,4 @@
+import { apiResponseReadingTask } from "./api-response-reading.js";
 import { accountingTasks } from "./accounting-cases.js";
 import { continuationTasks } from "./continuation-cases.js";
 import { lifecycleLiveTasks, lifecycleLiveDefinitionDigest } from "./lifecycle-live-cases.js";
@@ -951,6 +952,14 @@ export const runnerSuites: readonly RunnerSuiteFixture[] = [
       ...chatHardeningTasks.filter(task => ["stop-new-resume", "continuity-restart"].includes(task.id)),
     ], expectedMatrixSize: 16,
     definitionMetadata: { version: 2, binary: "1.0.13", model: "grok-4.7", scheduling: "explicit-only", repetitionsRequired: 3, artifactOracle: "independent-python-contract", stopBoundary: "provider-turn-started" },
+  },
+  {
+    id: "api-response-reading", label: "Bounded API response reading", manualOnly: true,
+    description: "Retrieve evidence beyond a saved API preview through authorized bounded text windows.",
+    groups: [], environments: runnerEnvironments,
+    profiles: runnerProfiles.filter(profile => profile.id === "runner-codex"),
+    tasks: [apiResponseReadingTask], expectedMatrixSize: 2,
+    definitionMetadata: { version: 1, grading: "hidden-evidence-exact-copy-and-api-tool-events", scheduling: "explicit-only" },
   },
   {
     id: "continuation-accounting", label: "Continuation accounting baseline", manualOnly: true,
