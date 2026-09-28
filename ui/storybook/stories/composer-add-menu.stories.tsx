@@ -23,9 +23,10 @@ interface ComposerAddStoryProps {
   goalAvailable: boolean;
   mobile: boolean;
   mobileContext: boolean;
+  fullBleedMobileContext: boolean;
 }
 
-function ComposerAddStory({ initialMode, goalAvailable, mobile, mobileContext }: ComposerAddStoryProps) {
+function ComposerAddStory({ initialMode, goalAvailable, mobile, mobileContext, fullBleedMobileContext }: ComposerAddStoryProps) {
   const [workMode, setWorkMode] = useState(initialMode);
   const [sent, setSent] = useState<string[]>([]);
   const [goal, setGoal] = useState<string | null>(null);
@@ -58,16 +59,18 @@ function ComposerAddStory({ initialMode, goalAvailable, mobile, mobileContext }:
       <span className="min-w-0 flex-1 truncate font-medium">PAP-1074 · Composer on mobile</span>
       <Ellipsis className="size-4 text-muted-foreground" aria-hidden />
     </header>
-    <main className="flex flex-1 flex-col p-4 pb-(--tc-composer-visible-nav-offset)"
+    <main className={fullBleedMobileContext
+      ? "flex flex-1 flex-col pt-4 pb-(--tc-composer-visible-nav-offset)"
+      : "flex flex-1 flex-col p-4 pb-(--tc-composer-visible-nav-offset)"}
       style={{ "--tc-composer-bottom": "var(--tc-composer-visible-nav-offset)" } as CSSProperties}>
-      <div className="space-y-4 text-sm">
+      <div className={fullBleedMobileContext ? "space-y-4 px-4 text-sm" : "space-y-4 text-sm"}>
         <div className="rounded-lg bg-muted px-3 py-2">Tune the composer spacing for a phone screen.</div>
         <div className="ml-8 rounded-lg bg-secondary px-3 py-2">The bottom navigation stays visible while writing.</div>
         {goal ? <div className="rounded-lg bg-card px-3 py-2">Goal: {goal}</div> : null}
         {sent.map((body, index) => <div key={index} className="ml-8 rounded-lg bg-secondary px-3 py-2">{body}</div>)}
       </div>
       <div className="min-h-4 flex-1" />
-      <TaskChatComposerDock mobile streamlined>{composer}</TaskChatComposerDock>
+      <TaskChatComposerDock mobile streamlined={!fullBleedMobileContext}>{composer}</TaskChatComposerDock>
     </main>
     <MobileBottomNav visible />
   </div>;
@@ -95,7 +98,7 @@ const meta = {
     options: { showPanel: false },
     docs: { description: { component: "The production task composer. The plus menu opens upward for files, supported goals, Plan mode, and Ask mode. Plan and Ask are exclusive; selecting a mode shows a removable chip. Cmd+. cycles standard, Plan, and Ask." } },
   },
-  args: { initialMode: "standard", goalAvailable: true, mobile: false, mobileContext: false },
+  args: { initialMode: "standard", goalAvailable: true, mobile: false, mobileContext: false, fullBleedMobileContext: false },
 } satisfies Meta<typeof ComposerAddStory>;
 
 export default meta;
@@ -210,5 +213,16 @@ export const MobilePlanWithBottomBar: Story = {
     await expect(page.getByText("notes.txt")).toBeVisible();
     await expect(page.getByRole("button", { name: "Remove Plan mode" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+  },
+};
+
+export const MobileFullBleedChatWithBottomBar: Story = {
+  name: "11 · Mobile full-width chat with bottom bar",
+  args: { mobile: true, mobileContext: true, fullBleedMobileContext: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+    await expect(page.getByTestId("task-chat-composer-dock")).toBeVisible();
   },
 };

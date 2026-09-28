@@ -14,7 +14,10 @@ export function TaskChatComposerDock({ children, mobile, streamlined }: TaskChat
     className={cn(
       "sticky flex max-w-(--tc-shell-max-w) flex-col gap-2",
       mobile
-        ? "bottom-(--tc-composer-bottom) z-20 -mx-2 w-auto px-1 pb-1 transition-[bottom] duration-200 ease-out"
+        ? cn(
+            "bottom-(--tc-composer-bottom) z-20 w-auto px-1 pb-1 transition-[bottom] duration-200 ease-out",
+            streamlined ? "-mx-2" : "mx-2",
+          )
         : "bottom-0 z-10 mx-auto w-full px-1 pb-1 md:px-4 md:pb-2",
       streamlined && "md:px-0 md:pb-0",
       (!streamlined || mobile) &&
