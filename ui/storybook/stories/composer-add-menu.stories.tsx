@@ -59,18 +59,19 @@ function ComposerAddStory({ initialMode, goalAvailable, mobile, mobileContext, f
       <span className="min-w-0 flex-1 truncate font-medium">PAP-1074 · Composer on mobile</span>
       <Ellipsis className="size-4 text-muted-foreground" aria-hidden />
     </header>
-    <main className={fullBleedMobileContext
-      ? "flex flex-1 flex-col pt-4 pb-(--tc-composer-visible-nav-offset)"
-      : "flex flex-1 flex-col p-4 pb-(--tc-composer-visible-nav-offset)"}
+    <main className="flex flex-1 flex-col p-4 pb-(--tc-composer-visible-nav-offset)"
       style={{ "--tc-composer-bottom": "var(--tc-composer-visible-nav-offset)" } as CSSProperties}>
-      <div className={fullBleedMobileContext ? "space-y-4 px-4 text-sm" : "space-y-4 text-sm"}>
-        <div className="rounded-lg bg-muted px-3 py-2">Tune the composer spacing for a phone screen.</div>
-        <div className="ml-8 rounded-lg bg-secondary px-3 py-2">The bottom navigation stays visible while writing.</div>
-        {goal ? <div className="rounded-lg bg-card px-3 py-2">Goal: {goal}</div> : null}
-        {sent.map((body, index) => <div key={index} className="ml-8 rounded-lg bg-secondary px-3 py-2">{body}</div>)}
+      {/* Production's full-width chat tab cancels the page's p-4 with -mx-4. */}
+      <div className={fullBleedMobileContext ? "-mx-4 flex flex-1 flex-col" : "flex flex-1 flex-col"}>
+        <div className={fullBleedMobileContext ? "space-y-4 px-4 text-sm" : "space-y-4 text-sm"}>
+          <div className="rounded-lg bg-muted px-3 py-2">Tune the composer spacing for a phone screen.</div>
+          <div className="ml-8 rounded-lg bg-secondary px-3 py-2">The bottom navigation stays visible while writing.</div>
+          {goal ? <div className="rounded-lg bg-card px-3 py-2">Goal: {goal}</div> : null}
+          {sent.map((body, index) => <div key={index} className="ml-8 rounded-lg bg-secondary px-3 py-2">{body}</div>)}
+        </div>
+        <div className="min-h-4 flex-1" />
+        <TaskChatComposerDock mobile streamlined={!fullBleedMobileContext}>{composer}</TaskChatComposerDock>
       </div>
-      <div className="min-h-4 flex-1" />
-      <TaskChatComposerDock mobile streamlined={!fullBleedMobileContext}>{composer}</TaskChatComposerDock>
     </main>
     <MobileBottomNav visible />
   </div>;
