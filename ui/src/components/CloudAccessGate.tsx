@@ -85,7 +85,7 @@ export function CloudAccessGate({ allowMembershipRequest = false }: { allowMembe
     return <PaperclipLoading />;
   }
 
-  if (healthQuery.error || sessionQuery.error || boardAccessQuery.error) {
+  if (healthQuery.error || (isAuthenticatedMode && sessionQuery.error) || boardAccessQuery.error) {
     return (
       <div className="mx-auto max-w-xl py-10 text-sm text-destructive">
         {healthQuery.error instanceof Error

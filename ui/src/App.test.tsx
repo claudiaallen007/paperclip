@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudAccessGate } from "./components/CloudAccessGate";
+import { queryKeys } from "./lib/queryKeys";
 import appSource from "./App.tsx?raw";
 
 const mockHealthApi = vi.hoisted(() => ({
@@ -62,9 +63,9 @@ async function waitForText(container: HTMLElement, text: string) {
   await vi.waitFor(() => expect(container.textContent).toContain(text));
 }
 
-function renderGate(container: HTMLElement, allowMembershipRequest = false) {
+function renderGate(container: HTMLElement, allowMembershipRequest = false, client?: QueryClient) {
   const root = createRoot(container);
-  const queryClient = new QueryClient({
+  const queryClient = client ?? new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
@@ -122,6 +123,19 @@ describe("CloudAccessGate", () => {
     const root = renderGate(container);
     await waitForText(container, "Session service unavailable");
     expect(container.textContent).not.toContain("Navigate:/auth");
+    expect(beginCloudSignInMock).not.toHaveBeenCalled();
+    unmountRoot(root);
+  });
+
+  it("does not require a session in local trusted mode after an unrelated session probe fails", async () => {
+    mockHealthApi.get.mockResolvedValue({ deploymentMode: "local_trusted" });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    await client.fetchQuery({
+      queryKey: queryKeys.auth.session,
+      queryFn: () => Promise.reject(new Error("Session service unavailable")),
+    }).catch(() => {});
+    const root = renderGate(container, false, client);
+    await waitForText(container, "Outlet content");
     expect(beginCloudSignInMock).not.toHaveBeenCalled();
     unmountRoot(root);
   });

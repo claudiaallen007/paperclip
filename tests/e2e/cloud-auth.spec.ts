@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 // simulate its entry endpoint and independent session states at the HTTP edge.
 for (const cloudOrigin of ["https://my.paperclip.app", "https://my-staging.paperclip.app"]) {
   for (const entry of ["auth", "task"] as const) {
-    test(`Cloud recovery preserves the task (${cloudOrigin}, ${entry})`, async ({ page, request, baseURL }) => {
+    test(`Cloud recovery preserves the task (${cloudOrigin}, ${entry})`, async ({ page, request, baseURL }, testInfo) => {
       const companyResponse = await request.post("/api/companies", { data: { name: `Cloud auth ${randomUUID()}` } });
       expect(companyResponse.ok()).toBe(true);
       const company = await companyResponse.json();
@@ -47,6 +47,7 @@ for (const cloudOrigin of ["https://my.paperclip.app", "https://my-staging.paper
       expect(page.url()).toBe(`${baseURL}${target}`);
       expect(handoffs).toBe(1);
       expect(formWasRendered).toBe(false);
+      await page.screenshot({ path: testInfo.outputPath("cloud-session-recovered.png") });
       await page.reload();
       await expect(page.getByRole("heading", { name: issue.title, exact: true })).toBeVisible();
       expect(handoffs).toBe(1);
