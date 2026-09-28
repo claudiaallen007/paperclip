@@ -437,6 +437,32 @@ function TaskExecutionControlsExample() {
   </div>;
 }
 
+function TaskPendingInputExample() {
+  const [open, setOpen] = useState(true);
+  const [pending, setPending] = useState(true);
+  return <div className="max-w-xl">
+    <TaskChatComposer
+      onAdd={async () => {}}
+      workMode="standard"
+      takeover={pending && open ? {
+        id: "design-question",
+        label: "Question",
+        pendingCount: 1,
+        content: <div className="space-y-3 text-sm">
+          <p>Should the agent use the existing draft?</p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => setPending(false)}>Use draft</Button>
+            <Button size="sm" variant="outline" onClick={() => setPending(false)}>Start fresh</Button>
+          </div>
+        </div>,
+        onDismiss: () => setOpen(false),
+        onSkip: () => setPending(false),
+      } : null}
+      pendingTakeover={pending ? { count: 1, label: "Question", onOpen: () => setOpen(true) } : null}
+    />
+  </div>;
+}
+
 function AgentChatPickerExample() {
   const [state, setState] = useState<"closed" | "empty" | "loading" | "error">("closed");
   return <div className="flex flex-wrap gap-2">
@@ -2210,6 +2236,11 @@ export function DesignGuide() {
           <DispositionRecoveryNotice snapshot={{ kind: "disposition_repair_escalated", actionId: "design-recovery", attemptCount: 2, maxAttempts: 2, reason: "unchanged_source_state_exhausted", assigneeAgentId: null }} defaultExpanded />
         </SubSection>
         <p className="text-sm text-muted-foreground">Storybook’s Recovery notice stories show the actionable, pending, acknowledged, unavailable, failed, and mobile states using this production component.</p>
+      </Section>
+
+      <Section title="Pending task input above composer">
+        <p className="mb-3 text-sm text-muted-foreground">A decision card sits above the ordinary message composer. Dismiss the card to keep a reopen control, or resolve it to clear the pending state.</p>
+        <TaskPendingInputExample />
       </Section>
 
       <Section title="Execution recovery">

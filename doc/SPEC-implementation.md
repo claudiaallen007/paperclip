@@ -1348,7 +1348,8 @@ Board can at any time:
 
 Ask-first connection calls use a server-owned tool-action confirmation linked to
 the authoritative action request. The task feed retains a stable record; dismissal
-only hides the composer takeover. Task and Connections decisions share one
+only hides the pending card above the composer. The ordinary composer remains
+available while the card is open. Task and Connections decisions share one
 transaction. Approval runs stored, signed arguments once; decline runs nothing.
 The human decision remains distinct from provider execution success or failure.
 

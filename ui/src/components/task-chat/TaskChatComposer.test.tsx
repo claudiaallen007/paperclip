@@ -783,7 +783,7 @@ describe("TaskChatComposer", () => {
       />,
     );
 
-    const composer = container.firstElementChild as HTMLElement;
+    const composer = container.querySelector<HTMLElement>(".paperclip-task-chat-composer")!;
     const mode = container.querySelector<HTMLElement>(
       '[data-testid="task-chat-composer-mode"]',
     )!;
@@ -809,7 +809,7 @@ describe("TaskChatComposer", () => {
   it("scopes the wrapping placeholder override to the task-chat composer", () => {
     render(<TaskChatComposer onAdd={vi.fn()} workMode="standard" />);
 
-    expect(container.firstElementChild?.classList).toContain(
+    expect(container.querySelector("[data-testid='task-chat-composer-input']")?.parentElement?.classList).toContain(
       "paperclip-task-chat-composer",
     );
   });
@@ -2065,7 +2065,54 @@ describe("TaskChatComposer", () => {
   });
 
   describe("composer takeovers", () => {
-    it("replaces the editor with one action surface and exposes Skip", async () => {
+    it.each([false, true])("keeps the interaction card visible while sending a normal message (mobile=%s)", async (mobile) => {
+      const onAdd = vi.fn().mockResolvedValue(undefined);
+      render(
+        <TaskChatComposer
+          onAdd={onAdd}
+          workMode="standard"
+          mobile={mobile}
+          takeover={{
+            id: "question-1",
+            label: "Question",
+            pendingCount: 1,
+            content: <p>Which environment?</p>,
+            onDismiss: vi.fn(),
+            onSkip: vi.fn(),
+          }}
+        />,
+      );
+
+      typeText("Continue investigating while I decide.");
+      expect(container.querySelector('[data-testid="task-chat-composer-takeover"]')?.textContent).toContain("Which environment?");
+      await act(async () => sendButton().click());
+      expect(onAdd).toHaveBeenCalledWith("Continue investigating while I decide.", undefined, undefined, undefined, expect.any(String));
+      expect(container.querySelector('[data-testid="task-chat-composer-takeover"]')?.textContent).toContain("Which environment?");
+      expect(editable().textContent).toBe("");
+    });
+
+    it("keeps the composer mode shortcut available beneath an open question", () => {
+      render(
+        <TaskChatComposer
+          onAdd={vi.fn()}
+          workMode="standard"
+          onWorkModeChange={vi.fn()}
+          takeover={{
+            id: "question-1",
+            label: "Question",
+            pendingCount: 1,
+            content: <p>Which environment?</p>,
+            onDismiss: vi.fn(),
+            onSkip: vi.fn(),
+          }}
+        />,
+      );
+      pressKey(".", { metaKey: true });
+      expect(container.querySelector('[data-testid="task-chat-composer-mode"]')?.textContent).toContain("Plan");
+      expect(container.querySelector('[data-testid="task-chat-composer-takeover"]')).not.toBeNull();
+    });
+
+    it("shows a separate card above a usable editor and exposes Skip", async () => {
       const onSkip = vi.fn().mockResolvedValue(undefined);
       render(
         <TaskChatComposer
@@ -2087,7 +2134,11 @@ describe("TaskChatComposer", () => {
         container.querySelector('[data-testid="task-chat-composer-takeover"]')
           ?.textContent,
       ).toContain("Which environment should receive this?");
-      expect(container.querySelector('[data-testid="mdx-editor"]')).toBeNull();
+      const card = container.querySelector('[data-testid="task-chat-composer-takeover"]')!;
+      const composer = container.querySelector('.paperclip-task-chat-composer')!;
+      expect(card.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(container.querySelector('[data-testid="mdx-editor"]')).not.toBeNull();
+      expect(container.querySelector<HTMLButtonElement>('[data-testid="task-chat-composer-send"]')).not.toBeNull();
       expect(container.textContent).not.toContain("Input needed");
       expect(container.textContent).not.toContain("Write instead");
       const skip = Array.from(

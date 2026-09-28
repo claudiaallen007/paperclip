@@ -817,9 +817,7 @@ export function TaskChatComposer({
     Boolean(onStop || stopControl.stopping);
   const uploadPending = attachments.some((item) => item.status === "uploading");
   const uploadFailed = attachments.some((item) => item.status === "error");
-  const takeoverVisible = Boolean(
-    takeover && !pause && !queuedEdit && !submitting && !uploadPending,
-  );
+  const takeoverVisible = Boolean(takeover && !pause);
   const previousTakeoverVisibleRef = useRef(takeoverVisible);
   useEffect(() => {
     if (previousTakeoverVisibleRef.current && !takeoverVisible && !queuedEdit) {
@@ -1118,19 +1116,80 @@ export function TaskChatComposer({
   }
 
   return (
-    <div
-      className={cn(
+    <div className="flex min-w-0 flex-col gap-2">
+      {takeoverVisible && takeover ? (
+        <section
+          className="relative max-h-(--tc-interaction-card-max-h) overflow-y-auto rounded-xl border border-border bg-card p-(--sz-18px) shadow-sm scrollbar-auto-hide"
+          aria-label={takeover.label}
+          data-testid="task-chat-composer-takeover"
+        >
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-2",
+              takeover.hideLabel && takeover.pendingCount === 1
+                ? "absolute right-0 top-0 z-10"
+                : "mb-3",
+            )}
+            data-testid="task-chat-composer-takeover-header"
+          >
+            <div className="min-w-0 flex-1">
+              {!takeoverHeaderClaimed && !takeover.hideLabel ? (
+                <strong className="block truncate text-sm font-medium text-foreground">
+                  {takeover.label}
+                </strong>
+              ) : null}
+              <div
+                ref={setTakeoverHeaderSlot}
+                className="flex min-w-0 items-center"
+                data-testid="task-chat-composer-takeover-title-slot"
+              />
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {takeover.pendingCount > 1 ? (
+                <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={takeover.onShowNext}>
+                  {takeover.pendingCount} pending
+                </Button>
+              ) : null}
+              <div ref={setTakeoverControlsSlot} className="flex shrink-0 items-center" data-testid="task-chat-composer-takeover-controls-slot" />
+              <Button type="button" size="icon-xs" variant="ghost" className="text-muted-foreground hover:text-foreground"
+                aria-label={`Dismiss ${takeover.label}`} disabled={takeoverBusy} onClick={takeover.onDismiss}>
+                <X aria-hidden />
+              </Button>
+            </div>
+          </div>
+          <div className={takeover.hideLabel && takeover.pendingCount === 1 ? "pr-8" : "pr-1"}
+            data-testid="task-chat-composer-takeover-body">
+            <TaskChatComposerTakeoverActionsContext.Provider
+              value={{
+                skipButton: takeover.inlineSkip && !takeover.hideSkip && takeoverSkipButton ? takeoverSkipButton : null,
+                dismiss: takeover.onDismiss,
+                headerSlot: takeoverHeaderSlot,
+                controlsSlot: takeoverControlsSlot,
+                setHeaderClaimed: setTakeoverHeaderClaimed,
+              }}
+            >
+              {takeover.content}
+            </TaskChatComposerTakeoverActionsContext.Provider>
+          </div>
+          {takeoverError ? <p className="mt-2 text-sm text-destructive" role="alert">{takeoverError}</p> : null}
+          {!takeover.inlineSkip && !takeover.hideSkip ? (
+            <div className="mt-3 flex items-center justify-end gap-2">{takeoverSkipButton}</div>
+          ) : null}
+        </section>
+      ) : null}
+      <div
+        className={cn(
         streamlined
           ? "paperclip-task-chat-composer rounded-(--radius-task-composer) border border-border bg-card p-(--sz-18px) shadow-(--shadow-task-composer) dark:border-0 dark:bg-muted dark:shadow-none"
           : "paperclip-task-chat-composer rounded-xl bg-card p-(--sz-18px)",
         mobile && "p-3",
       )}
-      onKeyDownCapture={(e) => {
+        onKeyDownCapture={(e) => {
         // Capture mode shortcuts on the wrapper so they work while the rich
         // editor is focused and win over Lexical/browser bindings. Match the
         // period by key and code because hardware keyboards on iOS can omit
         // `code` for Cmd+Period.
-        if (disabled || queuedEdit || takeoverVisible) return;
+        if (disabled || queuedEdit) return;
         const isPeriod = e.key === "." || e.code === "Period";
         const isModeShortcut =
           (isPeriod && (e.metaKey || e.ctrlKey)) ||
@@ -1141,9 +1200,9 @@ export function TaskChatComposer({
           setPendingMode((mode) => nextWorkMode(mode));
         }
       }}
-      onPasteCapture={handlePasteCapture}
-    >
-      {uncertainSubmission ? (
+        onPasteCapture={handlePasteCapture}
+      >
+        {uncertainSubmission ? (
         <div
           role="alert"
           className="mb-3 space-y-2 rounded-md border border-border bg-muted p-3 text-sm"
@@ -1181,117 +1240,22 @@ export function TaskChatComposer({
           ) : null}
         </div>
       ) : null}
-      {takeoverVisible && takeover ? (
-        <section
-          className="relative"
-          aria-label={takeover.label}
-          data-testid="task-chat-composer-takeover"
+      {!takeoverVisible && (pendingTakeover || takeover) ? (
+        <button
+          type="button"
+          className="mb-2 flex w-full items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={pendingTakeover?.onOpen}
+          data-testid="task-chat-pending-input-indicator"
         >
-          <div
-            className={cn(
-              "flex min-w-0 items-center gap-2",
-              takeover.hideLabel && takeover.pendingCount === 1
-                ? "absolute right-0 top-0 z-10"
-                : "mb-3",
-            )}
-            data-testid="task-chat-composer-takeover-header"
-          >
-            <div className="min-w-0 flex-1">
-              {!takeoverHeaderClaimed && !takeover.hideLabel ? (
-                <strong className="block truncate text-sm font-medium text-foreground">
-                  {takeover.label}
-                </strong>
-              ) : null}
-              <div
-                ref={setTakeoverHeaderSlot}
-                className="flex min-w-0 items-center"
-                data-testid="task-chat-composer-takeover-title-slot"
-              />
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-1">
-              {takeover.pendingCount > 1 ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2"
-                  onClick={takeover.onShowNext}
-                >
-                  {takeover.pendingCount} pending
-                </Button>
-              ) : null}
-              <div
-                ref={setTakeoverControlsSlot}
-                className="flex shrink-0 items-center"
-                data-testid="task-chat-composer-takeover-controls-slot"
-              />
-              <Button
-                type="button"
-                size="icon-xs"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground"
-                aria-label={`Dismiss ${takeover.label}`}
-                disabled={takeoverBusy}
-                onClick={takeover.onDismiss}
-              >
-                <X aria-hidden />
-              </Button>
-            </div>
-          </div>
-          <div
-            className={
-              takeover.hideLabel && takeover.pendingCount === 1
-                ? "pr-8"
-                : "pr-1"
-            }
-            data-testid="task-chat-composer-takeover-body"
-          >
-            <TaskChatComposerTakeoverActionsContext.Provider
-              value={{
-                skipButton:
-                  takeover.inlineSkip &&
-                  !takeover.hideSkip &&
-                  takeoverSkipButton
-                    ? takeoverSkipButton
-                    : null,
-                dismiss: takeover.onDismiss,
-                headerSlot: takeoverHeaderSlot,
-                controlsSlot: takeoverControlsSlot,
-                setHeaderClaimed: setTakeoverHeaderClaimed,
-              }}
-            >
-              {takeover.content}
-            </TaskChatComposerTakeoverActionsContext.Provider>
-          </div>
-          {takeoverError ? (
-            <p className="mt-2 text-sm text-destructive" role="alert">
-              {takeoverError}
-            </p>
-          ) : null}
-          {!takeover.inlineSkip && !takeover.hideSkip ? (
-            <div className="mt-3 flex items-center justify-end gap-2">
-              {takeoverSkipButton}
-            </div>
-          ) : null}
-        </section>
-      ) : (
-        <>
-          {pendingTakeover || takeover ? (
-            <button
-              type="button"
-              className="mb-2 flex w-full items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              onClick={pendingTakeover?.onOpen}
-              data-testid="task-chat-pending-input-indicator"
-            >
-              <CircleHelp className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">
-                {pendingTakeover?.label ?? takeover?.label ?? "Pending input"}
-              </span>
-              <span className="shrink-0 font-medium">
-                {pendingTakeover?.count ?? takeover?.pendingCount ?? 1} pending
-              </span>
-            </button>
-          ) : null}
+          <CircleHelp className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">
+            {pendingTakeover?.label ?? takeover?.label ?? "Pending input"}
+          </span>
+          <span className="shrink-0 font-medium">
+            {pendingTakeover?.count ?? takeover?.pendingCount ?? 1} pending
+          </span>
+        </button>
+      ) : null}
           {pause && conversationMode ? (
             <div className="space-y-2">
               <TaskChatPausedTakeover {...pause} hasDraft={Boolean(body.trim() || attachments.length)} />
@@ -1582,8 +1546,7 @@ export function TaskChatComposer({
               {stopControl.error}
             </p>
           ) : null}
-        </>
-      )}
+      </div>
     </div>
   );
 }

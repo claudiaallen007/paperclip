@@ -304,6 +304,7 @@
   --side-panel-tab-active-bg: color-mix(in oklab, var(--accent) 88%, var(--background));
   --side-panel-tab-hover-bg: color-mix(in oklab, var(--accent) 58%, transparent);
   --radius-task-composer: 16px;
+  --tc-interaction-card-max-h: 50dvh;
   --shadow-task-composer: 0 2px 8px -2px color-mix(in oklab, var(--foreground) 7%, transparent),
     0 12px 32px -8px color-mix(in oklab, var(--foreground) 12%, transparent);
   --profile-popover-width: 248px;
