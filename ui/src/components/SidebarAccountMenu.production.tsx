@@ -14,6 +14,7 @@ import { authApi } from "@/api/auth";
 import { queryKeys } from "@/lib/queryKeys";
 import { useCloudInstance } from "@/hooks/useCloudInstance";
 import { useSignOut } from "@/hooks/useSignOut";
+import { useStagingCommit } from "@/hooks/useStagingCommit";
 import { useSidebar } from "../context/SidebarContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -112,6 +113,7 @@ export function SidebarAccountMenu({
   const { isMobile, setSidebarOpen, collapsed, peeking } = useSidebar();
   const rail = collapsed && !peeking;
   const open = controlledOpen ?? internalOpen;
+  const stagingCommit = useStagingCommit(open);
   const setOpen = onOpenChange ?? setInternalOpen;
   const { data: session } = useQuery({
     queryKey: queryKeys.auth.session,
@@ -174,6 +176,14 @@ export function SidebarAccountMenu({
               <div className="min-w-0 flex-1 pt-1">
                 <h2 className="truncate text-base font-semibold text-foreground">{displayName}</h2>
                 <p className="truncate text-sm text-muted-foreground">{secondaryLabel}</p>
+                {stagingCommit ? (
+                  <p
+                    className="truncate font-mono text-(length:--text-micro) leading-(--profile-popover-meta-line-height) text-muted-foreground"
+                    title={stagingCommit}
+                  >
+                    SHA {stagingCommit.slice(0, 7)}
+                  </p>
+                ) : null}
               </div>
             </div>
 

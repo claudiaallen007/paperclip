@@ -1287,6 +1287,11 @@ Expected:
 - `/api/health` returns `{"status":"ok"}`
 - `/api/companies` returns a JSON array
 
+On `*.staging.paperclip.app`, the account menu shows the running server's
+short commit SHA below the user's email. Hover over it for the full SHA.
+Opening the menu refreshes `/api/health` so the label reflects recent deploys.
+The label is hidden on other hosts and when commit metadata is unavailable.
+
 ## Reset Local Dev Database
 
 To wipe local dev data and start fresh:
