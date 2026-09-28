@@ -253,9 +253,10 @@ export const MobileAddDialogWithBottomBar: Story = {
   args: { mobile: true, mobileContext: true },
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
-    const page = await openAdd(canvasElement);
-    await expect(page.getByRole("dialog", { name: "Add" })).toBeVisible();
+    const page = within(canvasElement.ownerDocument.body);
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+    await openAdd(canvasElement);
+    await expect(page.getByRole("dialog", { name: "Add" })).toBeVisible();
   },
 };
 
