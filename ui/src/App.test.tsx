@@ -127,8 +127,9 @@ describe("CloudAccessGate", () => {
     unmountRoot(root);
   });
 
-  it("does not require a session in local trusted mode after an unrelated session probe fails", async () => {
-    mockHealthApi.get.mockResolvedValue({ deploymentMode: "local_trusted" });
+  it.each([undefined, { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: "https://my.paperclip.app", stackSlug: "team" }])(
+    "does not require a session in local trusted mode, including with Cloud metadata %j", async (cloud) => {
+    mockHealthApi.get.mockResolvedValue({ deploymentMode: "local_trusted", cloud });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     await client.fetchQuery({
       queryKey: queryKeys.auth.session,

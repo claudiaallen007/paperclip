@@ -99,7 +99,7 @@ export function CloudAccessGate({ allowMembershipRequest = false }: { allowMembe
     );
   }
 
-  if (healthQuery.data?.cloud && !sessionQuery.data) {
+  if (isAuthenticatedMode && healthQuery.data?.cloud && !sessionQuery.data) {
     return <CloudSignIn cloud={healthQuery.data.cloud} returnTo={`${location.pathname}${location.search}${location.hash}`} />;
   }
 
