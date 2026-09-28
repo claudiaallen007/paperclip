@@ -115,6 +115,13 @@ builds and broad source checks without provider credentials. It records the
 source revision, resolved lock digest and immutable image reference. Paid
 Product E2E remains behind the protected default-branch workflow and environment.
 
+The public npm consumer check uses a digest-pinned, unprivileged container with
+no checkout or credentials mounted. It downloads dependencies with lifecycle
+scripts disabled and freezes the resulting consumer lockfile. The clean install
+then enables lifecycle scripts offline with networking disabled; both executable
+admission probes run in the same isolation. Only the separately provisioned Grok
+binary is mounted read-only for the positive probe.
+
 
 The Cloud application image also carries the controller-owned provider pack and
 sets `PAPERCLIP_RUNNER_REMOTE_PROVIDER_PACK_PATH`. Remote ACPX execution verifies

@@ -4,11 +4,12 @@
 // explicit and separate from npm installation, and is removed in finally.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { materializePublishManifest, prepareBundledPackage } from './prepare-bundled-package.mjs';
+import { GROK_PUBLIC_INSTALL_IMAGE, grokConsumerDockerArgs } from './grok-public-install-sandbox.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const prerequisite = '/opt/paperclip/providers/grok/1.0.13/grok';
 assert.equal(process.platform, 'linux', 'Run this verification on disposable EC2 Linux, not a developer host');
@@ -60,8 +61,21 @@ try {
     const packed = readdirSync(root).filter(f => f.endsWith('.tgz') && !tarballs.includes(join(root, f)));
     assert.equal(packed.length, 1); tarballs.push(join(root, packed[0]));
   }
-  const consumer = join(root, 'consumer'); mkdirSync(consumer); writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-  run('npm', ['install', '--ignore-scripts=false', '--omit=dev', '--package-lock=false', ...tarballs], consumer);
+  const assets = join(root, 'assets'); mkdirSync(assets, { mode: 0o755 });
+  const consumer = join(root, 'consumer'); mkdirSync(consumer);
+  const cache = join(root, 'cache'); mkdirSync(cache);
+  writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
+  for (const tarball of tarballs) {
+    const destination = join(assets, basename(tarball)); cpSync(tarball, destination); chmodSync(destination, 0o644);
+  }
+  const consumerUid = process.getuid();
+  const isolated = (command, options = {}) => run('docker', grokConsumerDockerArgs({ assets, consumer, cache, uid: consumerUid, gid: process.getgid(), command, ...options }));
+  // npm resolution is intentionally the public consumer graph, not the pnpm
+  // workspace graph. Freeze that result before any lifecycle script can run.
+  isolated(['npm', 'install', '--ignore-scripts', '--omit=dev', ...tarballs.map(file => `/packages/${basename(file)}`)], { download: true });
+  const consumerLock = readFileSync(join(consumer, 'package-lock.json'), 'utf8');
+  isolated(['npm', 'ci', '--offline', '--ignore-scripts=false', '--omit=dev']);
+  assert.equal(readFileSync(join(consumer, 'package-lock.json'), 'utf8'), consumerLock, 'Lifecycle execution must preserve the resolved consumer lock');
   for (const name of needed) {
     const installedManifest = JSON.parse(readFileSync(join(consumer, 'node_modules', name, 'package.json'), 'utf8'));
     assert.equal(installedManifest.version, releaseVersion, `Installed release version for ${name}`);
@@ -76,19 +90,19 @@ try {
   // separate process prevents module resolution from borrowing this checkout.
   const probe = `
     import assert from 'node:assert/strict';
-    import { verifyQualifiedAcpxInstallation } from './node_modules/@paperclipai/server/dist/vendor/paperclip-runner/drivers/acpx/installation-integrity.js';
-    import { resolveQualifiedAcpxProfile } from './node_modules/@paperclipai/server/dist/vendor/paperclip-runner/drivers/acpx/qualified-profiles.js';
+    import { verifyQualifiedAcpxInstallation } from '/consumer/node_modules/@paperclipai/server/dist/vendor/paperclip-runner/drivers/acpx/installation-integrity.js';
+    import { resolveQualifiedAcpxProfile } from '/consumer/node_modules/@paperclipai/server/dist/vendor/paperclip-runner/drivers/acpx/qualified-profiles.js';
     const profile = resolveQualifiedAcpxProfile('grok', 'grok-4.7');
     const inspect = () => verifyQualifiedAcpxInstallation(profile, () => { throw new Error('Grok must not resolve an npm package'); });
     if (process.argv[2] === 'missing') await assert.rejects(inspect, /prerequisite missing/);
     else { const installation = await inspect(); assert.equal(installation.agentServerPackageJsonPath, null); assert.equal(installation.agentRuntimePackageJsonPath, null); await (await installation.openCommand()).close(); }
   `;
-  writeFileSync(join(consumer, 'probe.mjs'), probe);
-  run(process.execPath, ['probe.mjs', 'missing'], consumer);
+  writeFileSync(join(assets, 'probe.mjs'), probe, { mode: 0o644 });
+  isolated(['node', '/packages/probe.mjs', 'missing']);
   provisioned = true;
   run('sudo', [process.execPath, join(repo, 'packages/paperclip-runner/scripts/provision-grok.mjs'), prerequisite]);
-  run(process.execPath, ['probe.mjs', 'present'], consumer);
-  console.log(JSON.stringify({ schema: 'paperclip.grok.public-npm-install.v1', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, cleanNpmInstall: true, packageCount: needed.size, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
+  isolated(['node', '/packages/probe.mjs', 'present'], { prerequisite });
+  console.log(JSON.stringify({ schema: 'paperclip.grok.public-npm-install.v1', sourceRevision, releaseVersion, lifecycleScriptsEnabled: true, lifecycleNetwork: 'none', consumerImage: GROK_PUBLIC_INSTALL_IMAGE, consumerUid, consumerLockPreserved: true, cleanNpmInstall: true, packageCount: needed.size, builtinLauncherPresent: true, separateGrokPackage: false, npmProvisionedBinary: false, missingPrerequisiteRejected: true, provisionedBinaryVerified: true, commandLeaseVerified: true, providerCalls: 0 }));
 } finally {
   if (provisioned) run('sudo', ['rm', '-f', prerequisite]);
   rmSync(root, { recursive: true, force: true });
