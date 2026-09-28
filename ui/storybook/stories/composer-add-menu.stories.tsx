@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
+import { ChevronLeft, Ellipsis } from "lucide-react";
 import type { IssueAttachment, IssueWorkMode, RunnerGoalCapability } from "@paperclipai/shared";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { TaskChatComposer } from "@/components/task-chat/TaskChatComposer";
+import { TaskChatComposerDock } from "@/components/task-chat/TaskChatComposerDock";
 
 const goalCapability: RunnerGoalCapability = {
   availability: "available",
@@ -19,9 +22,10 @@ interface ComposerAddStoryProps {
   initialMode: IssueWorkMode;
   goalAvailable: boolean;
   mobile: boolean;
+  mobileContext: boolean;
 }
 
-function ComposerAddStory({ initialMode, goalAvailable, mobile }: ComposerAddStoryProps) {
+function ComposerAddStory({ initialMode, goalAvailable, mobile, mobileContext }: ComposerAddStoryProps) {
   const [workMode, setWorkMode] = useState(initialMode);
   const [sent, setSent] = useState<string[]>([]);
   const [goal, setGoal] = useState<string | null>(null);
@@ -36,6 +40,38 @@ function ComposerAddStory({ initialMode, goalAvailable, mobile }: ComposerAddSto
     };
   }
 
+  const composer = <TaskChatComposer
+    onAdd={async (body) => setSent((messages) => [...messages, body])}
+    workMode={workMode}
+    onWorkModeChange={setWorkMode}
+    onAttachImage={attachFile}
+    runnerGoalCapability={goalAvailable ? goalCapability : { ...goalCapability, availability: "unsupported", actions: [] }}
+    onRunnerGoalCommand={goalAvailable ? async (command) => {
+      if (command.action === "create") setGoal(command.objective);
+    } : undefined}
+    mobile={mobile}
+  />;
+
+  if (mobileContext) return <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <header className="flex h-12 shrink-0 items-center gap-3 px-4 text-sm">
+      <ChevronLeft className="size-4 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 truncate font-medium">PAP-1074 · Composer on mobile</span>
+      <Ellipsis className="size-4 text-muted-foreground" aria-hidden />
+    </header>
+    <main className="flex flex-1 flex-col p-4 pb-(--sz-calc-14)"
+      style={{ "--tc-composer-bottom": "var(--sz-calc-14)" } as CSSProperties}>
+      <div className="space-y-4 text-sm">
+        <div className="rounded-lg bg-muted px-3 py-2">Tune the composer spacing for a phone screen.</div>
+        <div className="ml-8 rounded-lg bg-secondary px-3 py-2">The bottom navigation stays visible while writing.</div>
+        {goal ? <div className="rounded-lg bg-card px-3 py-2">Goal: {goal}</div> : null}
+        {sent.map((body, index) => <div key={index} className="ml-8 rounded-lg bg-secondary px-3 py-2">{body}</div>)}
+      </div>
+      <div className="min-h-4 flex-1" />
+      <TaskChatComposerDock mobile streamlined>{composer}</TaskChatComposerDock>
+    </main>
+    <MobileBottomNav visible />
+  </div>;
+
   return <div className="flex min-h-screen flex-col bg-background p-4 text-foreground sm:p-8">
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
       <header className="border-b border-border pb-4">
@@ -46,17 +82,7 @@ function ComposerAddStory({ initialMode, goalAvailable, mobile }: ComposerAddSto
         {goal ? <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm">Goal: {goal}</div> : null}
         {sent.map((body, index) => <div key={index} className="ml-auto rounded-lg bg-secondary px-4 py-3 text-sm">{body}</div>)}
       </div>
-      <TaskChatComposer
-        onAdd={async (body) => setSent((messages) => [...messages, body])}
-        workMode={workMode}
-        onWorkModeChange={setWorkMode}
-        onAttachImage={attachFile}
-        runnerGoalCapability={goalAvailable ? goalCapability : { ...goalCapability, availability: "unsupported", actions: [] }}
-        onRunnerGoalCommand={goalAvailable ? async (command) => {
-          if (command.action === "create") setGoal(command.objective);
-        } : undefined}
-        mobile={mobile}
-      />
+      {composer}
     </div>
   </div>;
 }
@@ -69,7 +95,7 @@ const meta = {
     options: { showPanel: false },
     docs: { description: { component: "The production task composer. The plus menu opens upward for files, supported goals, Plan mode, and Ask mode. Plan and Ask are exclusive; selecting a mode shows a removable chip. Cmd+. cycles standard, Plan, and Ask." } },
   },
-  args: { initialMode: "standard", goalAvailable: true, mobile: false },
+  args: { initialMode: "standard", goalAvailable: true, mobile: false, mobileContext: false },
 } satisfies Meta<typeof ComposerAddStory>;
 
 export default meta;
@@ -146,7 +172,7 @@ export const GoalUnavailable: Story = {
 export const Mobile: Story = {
   name: "07 · Mobile composer",
   args: { mobile: true },
-  parameters: { viewport: { defaultViewport: "mobile1" } },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const page = await openAdd(canvasElement);
     await expect(page.getByRole("menuitem", { name: /Plan mode/ })).toBeVisible();
@@ -159,5 +185,30 @@ export const GoalDraft: Story = {
     const page = await openAdd(canvasElement);
     await userEvent.click(page.getByRole("menuitem", { name: /Goal/ }));
     await expect(page.getByRole("textbox", { name: "editable markdown" })).toHaveTextContent("/goal");
+  },
+};
+
+export const MobileWithBottomBar: Story = {
+  name: "09 · Mobile with bottom bar",
+  args: { mobile: true, mobileContext: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+    await expect(page.getByTestId("task-chat-composer-dock")).toBeVisible();
+  },
+};
+
+export const MobilePlanWithBottomBar: Story = {
+  name: "10 · Mobile plan and attachment with bottom bar",
+  args: { initialMode: "planning", mobile: true, mobileContext: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const input = canvasElement.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await userEvent.upload(input, new File(["Mobile layout"], "notes.txt", { type: "text/plain" }));
+    await expect(page.getByText("notes.txt")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove Plan mode" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
   },
 };
