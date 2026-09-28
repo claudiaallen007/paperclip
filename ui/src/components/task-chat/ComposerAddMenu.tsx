@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import "./composer-run-settings.css";
 
+const MOBILE_SHELL_QUERY = "(max-width: 767px)";
+
 interface ComposerAddMenuProps {
   mode: IssueWorkMode;
   onModeChange?: (mode: IssueWorkMode) => void;
@@ -29,10 +31,10 @@ export function ComposerAddMenu({
 }: ComposerAddMenuProps) {
   const [open, setOpen] = useState(false);
   const goalFocusRef = useRef(false);
-  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 639px)").matches);
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(MOBILE_SHELL_QUERY).matches);
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
-    const query = window.matchMedia("(max-width: 639px)");
+    const query = window.matchMedia(MOBILE_SHELL_QUERY);
     const update = () => setNarrow(query.matches);
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
