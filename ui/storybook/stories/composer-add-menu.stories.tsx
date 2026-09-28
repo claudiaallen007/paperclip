@@ -1,11 +1,23 @@
 import { useState, type CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { ChevronLeft, Ellipsis } from "lucide-react";
 import type { IssueAttachment, IssueWorkMode, RunnerGoalCapability } from "@paperclipai/shared";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { TaskChatComposer } from "@/components/task-chat/TaskChatComposer";
 import { TaskChatComposerDock } from "@/components/task-chat/TaskChatComposerDock";
+import { composerAgentAppearance, composerAgents } from "../prototypes/composer-model-picker/fixtures";
+
+const agentMap = new Map(composerAgents.map((agent) => [agent.id, {
+  id: agent.id,
+  name: agent.name,
+  appearance: composerAgentAppearance(agent.id),
+}]));
+const assignees = composerAgents.map((agent) => ({
+  id: `agent:${agent.id}`,
+  label: agent.name,
+  searchText: `${agent.name} ${agent.role} ${agent.harness}`,
+}));
 
 const goalCapability: RunnerGoalCapability = {
   availability: "available",
@@ -46,6 +58,10 @@ function ComposerAddStory({ initialMode, goalAvailable, mobile, mobileContext, f
     workMode={workMode}
     onWorkModeChange={setWorkMode}
     onAttachImage={attachFile}
+    enableReassign
+    reassignOptions={assignees}
+    agentMap={agentMap}
+    currentAssigneeValue="agent:codex"
     runnerGoalCapability={goalAvailable ? goalCapability : { ...goalCapability, availability: "unsupported", actions: [] }}
     onRunnerGoalCommand={goalAvailable ? async (command) => {
       if (command.action === "create") setGoal(command.objective);
@@ -97,7 +113,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     options: { showPanel: false },
-    docs: { description: { component: "The production task composer. The plus menu opens upward for files, supported goals, Plan mode, and Ask mode. Plan and Ask are exclusive; selecting a mode shows a removable chip. Cmd+. cycles standard, Plan, and Ask." } },
+    docs: { description: { component: "The production task composer. The Add menu opens upward on desktop and as a dialog on mobile for files, supported goals, Plan mode, and Ask mode. Plan and Ask are exclusive; selecting a mode shows a removable chip. Cmd+. cycles standard, Plan, and Ask. Mobile stories include capsule agent avatars and the actual bottom navigation." } },
   },
   args: { initialMode: "standard", goalAvailable: true, mobile: false, mobileContext: false, fullBleedMobileContext: false },
 } satisfies Meta<typeof ComposerAddStory>;
@@ -174,12 +190,14 @@ export const GoalUnavailable: Story = {
 };
 
 export const Mobile: Story = {
-  name: "07 · Mobile composer",
+  name: "07 · Mobile Add dialog",
   args: { mobile: true },
   globals: { viewport: { value: "mobile1", isRotated: false } },
   play: async ({ canvasElement }) => {
     const page = await openAdd(canvasElement);
-    await expect(page.getByRole("menuitem", { name: /Plan mode/ })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Add" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Plan mode/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Files and images/ })).toBeVisible();
   },
 };
 
@@ -200,6 +218,7 @@ export const MobileWithBottomBar: Story = {
     const page = within(canvasElement.ownerDocument.body);
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
     await expect(page.getByTestId("task-chat-composer-dock")).toBeVisible();
+    await expect(page.getByTestId("task-chat-composer-assignee").querySelector('[data-slot="agent-avatar"] img')).toBeVisible();
   },
 };
 
@@ -225,5 +244,30 @@ export const MobileFullBleedChatWithBottomBar: Story = {
     const page = within(canvasElement.ownerDocument.body);
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
     await expect(page.getByTestId("task-chat-composer-dock")).toBeVisible();
+    await expect(page.getByTestId("task-chat-composer-assignee").querySelector('[data-slot="agent-avatar"] img')).toBeVisible();
+  },
+};
+
+export const MobileAddDialogWithBottomBar: Story = {
+  name: "12 · Mobile Add dialog with bottom bar",
+  args: { mobile: true, mobileContext: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const page = await openAdd(canvasElement);
+    await expect(page.getByRole("dialog", { name: "Add" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+  },
+};
+
+export const MobileGoalFromAddDialog: Story = {
+  name: "13 · Mobile Goal keeps editor focus",
+  args: { mobile: true, mobileContext: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const page = await openAdd(canvasElement);
+    await userEvent.click(page.getByRole("button", { name: /Goal Keep pursuing/ }));
+    const editor = page.getByRole("textbox", { name: "editable markdown" });
+    await expect(editor).toHaveTextContent("/goal");
+    await waitFor(() => expect(editor).toHaveFocus());
   },
 };

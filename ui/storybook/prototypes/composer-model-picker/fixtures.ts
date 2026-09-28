@@ -1,5 +1,6 @@
 import { codexLocalReasoningEffortsForModel, isCodexLocalFastModeSupported, isCodexLocalKnownModel } from "@paperclipai/adapter-codex-local";
 import { modelSupportsEffort, KIMI_SUPPORTED_EFFORTS } from "@paperclipai/adapter-kimi-local";
+import { AGENT_PALETTE_IDS, appearanceForPalette } from "@paperclipai/shared";
 
 export type ModelOption = { id: string; label: string; detail?: string };
 export type ComposerAgent = {
@@ -66,6 +67,12 @@ export const composerAgents: ComposerAgent[] = [
   { id: "openclaw", name: "Ollie", role: "Support", harness: "OpenClaw Gateway", adapterType: "openclaw_gateway", models: [], noModelReason: "This gateway chooses its model remotely; Paperclip has no model catalog or per-message setting for it." },
   { id: "hermes-gateway", name: "Hera", role: "Remote operations", harness: "Hermes Gateway", adapterType: "hermes_gateway", models: [], noModelReason: "This Hermes gateway chooses its model remotely; Paperclip cannot override it here." },
 ];
+
+/** Share the capsule-avatar palettes used by the agent persona stories. */
+export function composerAgentAppearance(agentId: string) {
+  const index = Math.max(0, composerAgents.findIndex((agent) => agent.id === agentId));
+  return appearanceForPalette(AGENT_PALETTE_IDS[index % AGENT_PALETTE_IDS.length]);
+}
 
 export const effortLabels: Record<string, string> = {
   minimal: "Minimal", low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max", ultra: "Ultra", off: "Off",

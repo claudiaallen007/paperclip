@@ -945,6 +945,38 @@ describe("TaskChatComposer", () => {
     expect(container.querySelector('[data-testid="task-chat-composer-mode"]')).toBeNull();
   });
 
+  it("opens a mobile Add dialog while keeping Send at the end of the footer", () => {
+    render(<TaskChatComposer onAdd={vi.fn()} workMode="standard" onWorkModeChange={vi.fn()}
+      onAttachImage={vi.fn().mockResolvedValue(undefined)} mobile enableReassign
+      reassignOptions={[{ id: "agent:codex", label: "Codie" }]}
+      currentAssigneeValue="agent:codex" />);
+
+    const actions = container.querySelector<HTMLElement>('[data-testid="task-chat-composer-actions"]')!;
+    expect(actions.lastElementChild).toBe(sendButton());
+    expect(actions.firstElementChild?.contains(sendButton())).toBe(false);
+    expect(actions.querySelector('[data-testid="task-chat-composer-assignee"] [data-slot="agent-avatar"] img')).not.toBeNull();
+
+    flushSync(() => container.querySelector<HTMLButtonElement>('[data-testid="task-chat-composer-add"]')!.click());
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    expect(dialog?.textContent).toContain("Files and images");
+    expect(dialog?.textContent).toContain("Plan mode");
+    expect(dialog?.textContent).toContain("Ask mode");
+
+    flushSync(() => document.querySelector<HTMLButtonElement>('[data-testid="composer-add-plan"]')!.click());
+    expect(container.querySelector('[data-testid="task-chat-composer-mode"]')?.textContent).toContain("Plan mode");
+    expect(document.querySelector('[role="dialog"][data-state="open"]')).toBeNull();
+  });
+
+  it("opens the mobile file picker from the Add dialog", () => {
+    render(<TaskChatComposer onAdd={vi.fn()} workMode="standard" mobile
+      onAttachImage={vi.fn().mockResolvedValue(undefined)} />);
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const openPicker = vi.spyOn(input, "click").mockImplementation(() => {});
+    flushSync(() => container.querySelector<HTMLButtonElement>('[data-testid="task-chat-composer-add"]')!.click());
+    flushSync(() => document.querySelector<HTMLButtonElement>('[data-testid="composer-add-file"]')!.click());
+    expect(openPicker).toHaveBeenCalledOnce();
+  });
+
   it("uses the borderless Paper controls and inverse circular send button", () => {
     render(
       <TaskChatComposer

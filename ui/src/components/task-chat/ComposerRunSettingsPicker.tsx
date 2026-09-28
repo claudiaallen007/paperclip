@@ -181,6 +181,6 @@ export function ComposerRunSettingsPicker({
   </div>;
 
   const onOpenChange = (next: boolean) => { setOpen(next); if (!next) { setView("settings"); setModelSearch(""); setAssigneeSearch(""); } };
-  return mobile ? <Dialog open={open} onOpenChange={onOpenChange}><DialogTrigger asChild>{trigger}</DialogTrigger><DialogContent aria-describedby={undefined} showCloseButton={false} className="composer-run-settings-mobile top-(--pct-50) -translate-y-(--pct-50) gap-0 overflow-y-auto p-0"><DialogTitle className="sr-only">Select assignee, model and effort</DialogTitle><AnimatedBody>{body}</AnimatedBody></DialogContent></Dialog>
+  return mobile ? <Dialog open={open} onOpenChange={onOpenChange}><DialogTrigger asChild>{trigger}</DialogTrigger><DialogContent aria-describedby={undefined} showCloseButton={false} className="composer-mobile-dialog top-(--pct-50) -translate-y-(--pct-50) gap-0 overflow-y-auto p-0"><DialogTitle className="sr-only">Select assignee, model and effort</DialogTitle><AnimatedBody>{body}</AnimatedBody></DialogContent></Dialog>
     : <Popover open={open} onOpenChange={onOpenChange}><PopoverTrigger asChild>{trigger}</PopoverTrigger><PopoverContent side="top" align="end" sideOffset={8} className="w-80 max-w-full p-0 shadow-sm"><AnimatedBody>{body}</AnimatedBody></PopoverContent></Popover>;
 }

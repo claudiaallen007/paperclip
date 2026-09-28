@@ -1402,9 +1402,10 @@ export function TaskChatComposer({
           ) : null}
 
           <div
-            className="mt-2 flex items-center gap-2"
+            className={cn("mt-2 flex gap-2", mobile ? "items-end" : "items-center")}
             data-testid="task-chat-composer-actions"
           >
+            <div className={mobile ? "flex min-w-0 flex-1 flex-wrap items-center gap-2" : "contents"}>
             {canAcceptFiles ? (
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileInputChange} />
             ) : null}
@@ -1416,6 +1417,7 @@ export function TaskChatComposer({
                 runnerGoalCapability?.availability === "available" && onRunnerGoalCommand
                 ? prepareGoal : undefined}
               disabled={disabled || !!uncertainSubmission}
+              mobile={mobile}
               triggerTestId="task-chat-composer-add"
               menuTestId="task-chat-composer-add-menu"
             />
@@ -1430,7 +1432,7 @@ export function TaskChatComposer({
                 disabled={disabled || !!uncertainSubmission} testId="task-chat-composer-mode" />
             )}
 
-            <div className="flex-1" />
+            {!mobile ? <div className="flex-1" /> : null}
 
             {showAssignee && !queuedEdit && companyId && modelAgents ? (
               <ComposerRunSettingsPicker
@@ -1513,6 +1515,7 @@ export function TaskChatComposer({
                 Cancel
               </button>
             ) : null}
+            </div>
 
             <button
               type="button"

@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowLeft, ArrowUp, Bot, Check, ChevronDown, ChevronRight, Plus, RotateCcw, Search, X, Zap } from "lucide-react";
+import { ArrowLeft, ArrowUp, Check, ChevronDown, ChevronRight, Plus, RotateCcw, Search, X, Zap } from "lucide-react";
+import { AgentAvatar } from "@/components/AgentAvatar";
 import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ComposerAddMenu, ComposerModeChip } from "@/components/task-chat/ComposerAddMenu";
 import { nextWorkMode } from "@/lib/work-mode-meta";
 import type { IssueWorkMode } from "@paperclipai/shared";
 import { cn } from "@/lib/utils";
-import { composerAgents, effortChoices, effortLabels, fastModeAvailable, modelLabel, type ComposerAgent } from "./fixtures";
+import { composerAgentAppearance, composerAgents, effortChoices, effortLabels, fastModeAvailable, modelLabel, type ComposerAgent } from "./fixtures";
 import "./picker.css";
 
 export type ComposerModelPickerPreviewProps = {
@@ -22,8 +23,8 @@ export type ComposerModelPickerPreviewProps = {
 
 type SentMessage = { text: string; agent: string; model: string | null; effort: string | null; fast: boolean };
 
-function AgentMark({ agent }: { agent: ComposerAgent }) {
-  return <span className="grid size-6 shrink-0 place-items-center rounded-md bg-secondary text-xs font-semibold text-secondary-foreground" aria-hidden>{agent.name.slice(0, 1)}</span>;
+function AgentMark({ agent, size = 24 }: { agent: ComposerAgent; size?: 16 | 24 }) {
+  return <AgentAvatar agent={{ id: agent.id, name: agent.name, appearance: composerAgentAppearance(agent.id) }} size={size} />;
 }
 
 function ModelRow({ option, selected, onSelect }: {
@@ -151,7 +152,7 @@ export function ComposerModelPickerPreview({
 
   const pickerTrigger = (
     <button type="button" aria-label="Select assignee, model and effort" className="flex h-8 min-w-0 max-w-64 items-center gap-1.5 rounded-full bg-muted px-2.5 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="composer-model-trigger">
-      <span className="hidden sm:inline-flex"><AgentMark agent={agent} /></span>
+      <AgentMark agent={agent} size={16} />
       <span className="max-w-20 shrink-0 truncate">{agent.name}</span>
       <span className="text-muted-foreground" aria-hidden>·</span>
       <span className="min-w-0 truncate text-muted-foreground">{modelAvailable ? modelLabel(agent, model) : "Harness default"}</span>
@@ -227,7 +228,7 @@ export function ComposerModelPickerPreview({
     <div className="min-h-screen bg-background text-foreground">
       <div className={cn("mx-auto flex min-h-screen w-full flex-col px-4 py-6 sm:px-8", compact ? "max-w-md" : "max-w-4xl")}>
         <header className="flex items-center gap-3 border-b border-border pb-4">
-          <span className="grid size-9 place-items-center rounded-lg bg-secondary text-secondary-foreground"><Bot className="size-5" aria-hidden /></span>
+          <AgentAvatar agent={{ id: agent.id, name: agent.name, appearance: composerAgentAppearance(agent.id) }} size={32} />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold">Agent conversation</span>
             <span className="block text-xs text-muted-foreground">Model and effort can be chosen for the next message</span>
@@ -257,10 +258,11 @@ export function ComposerModelPickerPreview({
             aria-label="Message" rows={2}
             className="block min-h-16 w-full resize-y bg-transparent text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground" />
           {attachments.length ? <div className="mt-2 flex flex-wrap gap-2">{attachments.map((name, index) => <button key={`${name}-${index}`} type="button" onClick={() => setAttachments((items) => items.filter((_, itemIndex) => itemIndex !== index))} className="rounded-md bg-muted px-2 py-1 text-xs">{name} ×</button>)}</div> : null}
-          <div className="mt-3 flex min-w-0 items-center gap-1.5">
+          <div className="mt-3 flex min-w-0 items-end gap-1.5">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             <input ref={fileInputRef} type="file" className="hidden" onChange={(event) => { setAttachments((items) => [...items, ...Array.from(event.target.files ?? []).map((file) => file.name)]); event.target.value = ""; }} />
             <ComposerAddMenu mode={mode} onModeChange={setMode} onAttachFile={() => fileInputRef.current?.click()}
-              onGoal={agent.adapterType === "codex_local" ? () => setDraft((current) => /^\/goal(?:\s|$)/.test(current) ? current : `/goal ${current}`) : undefined} />
+              onGoal={agent.adapterType === "codex_local" ? () => setDraft((current) => /^\/goal(?:\s|$)/.test(current) ? current : `/goal ${current}`) : undefined} mobile={mobile} />
             <ComposerModeChip mode={mode} onRemove={() => setMode("standard")} />
             <span className="hidden min-w-0 flex-1 sm:block" />
 
@@ -280,6 +282,7 @@ export function ComposerModelPickerPreview({
                 </PopoverContent>
               </Popover>
             )}
+            </div>
             <button type="button" onClick={send} disabled={!draft.trim()} aria-label="Send message" className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"><ArrowUp className="size-4" aria-hidden /></button>
           </div>
         </div>
