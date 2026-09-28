@@ -20,6 +20,11 @@ const mockAccessApi = vi.hoisted(() => ({
   getCurrentBoardAccess: vi.fn(),
   claimBootstrapAdmin: vi.fn(),
 }));
+const beginCloudSignInMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/cloud-sign-in", () => ({
+  beginCloudSignIn: (url: string) => beginCloudSignInMock(url),
+  clearCloudSignInAttempt: vi.fn(),
+}));
 
 vi.mock("./api/health", () => ({
   healthApi: mockHealthApi,
@@ -98,6 +103,27 @@ describe("CloudAccessGate", () => {
     container.remove();
     document.body.innerHTML = "";
     vi.clearAllMocks();
+  });
+
+  it("renews a missing Cloud instance session without opening local auth", async () => {
+    mockHealthApi.get.mockResolvedValue({ deploymentMode: "authenticated", cloud: { managed: true, managedBy: "paperclip-cloud", cloudBaseUrl: "https://my-staging.paperclip.app", stackSlug: "team" } });
+    mockAuthApi.getSession.mockResolvedValue(null);
+    beginCloudSignInMock.mockReturnValue(true);
+    const root = renderGate(container);
+    await vi.waitFor(() => expect(beginCloudSignInMock).toHaveBeenCalledTimes(1));
+    expect(beginCloudSignInMock).toHaveBeenCalledWith("https://my-staging.paperclip.app/v1/stacks/team/entry-redirect?returnTo=%2Finstance%2Fsettings%2Fgeneral");
+    expect(container.textContent).not.toContain("Navigate:/auth");
+    expect(container.textContent).not.toContain("Outlet content");
+    unmountRoot(root);
+  });
+
+  it("does not mistake a session service failure for a signed-out user", async () => {
+    mockAuthApi.getSession.mockRejectedValue(new Error("Session service unavailable"));
+    const root = renderGate(container);
+    await waitForText(container, "Session service unavailable");
+    expect(container.textContent).not.toContain("Navigate:/auth");
+    expect(beginCloudSignInMock).not.toHaveBeenCalled();
+    unmountRoot(root);
   });
 
   it("shows a no-access message for signed-in users without org access", async () => {
