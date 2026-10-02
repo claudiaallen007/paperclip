@@ -22,7 +22,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { PageTabBar } from "@/components/PageTabBar";
-import { PluginSetupGuide, getPluginSetup, setupCallbackUrl, countSetupCredentials } from "@/components/PluginSetupGuide";
 import {
   JsonSchemaForm,
   validateJsonSchemaForm,
@@ -197,10 +196,41 @@ export function PluginSettings() {
 
         <TabsContent value="configuration" className="space-y-6">
           <div className="space-y-8">
+            <section className="space-y-5">
+              <h2 className="text-base font-semibold">About</h2>
+              <div className="grid gap-8 lg:grid-cols-(--gtc-52)">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+                  <p className="text-sm leading-6 text-foreground/90">{pluginDescription}</p>
+                </div>
+                <div className="space-y-4 text-sm">
+                  <div className="space-y-1.5">
+                    <h3 className="font-medium text-muted-foreground">Author</h3>
+                    <p className="text-foreground">{plugin.manifestJson.author}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-muted-foreground">Categories</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {plugin.categories.length > 0 ? (
+                        plugin.categories.map((category) => (
+                          <Badge key={category} variant="outline" className="capitalize">
+                            {category}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-foreground">None</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <Separator />
+
             <section className="space-y-4">
               <div className="space-y-1">
-                <h2 className="text-base font-semibold">{configSchema?.title || "Settings"}</h2>
-                {configSchema?.description ? <p className="text-sm text-muted-foreground">{configSchema.description}</p> : null}
+                <h2 className="text-base font-semibold">Settings</h2>
               </div>
               {hasLocalFolders ? (
                 <PluginLocalFoldersSettings
@@ -228,7 +258,6 @@ export function PluginSettings() {
                   pluginId={pluginId!}
                   companyId={selectedCompanyId}
                   schema={configSchema!}
-                  companyPrefix={companyPrefix ?? selectedCompany?.issuePrefix ?? null}
                   initialValues={configData?.configJson}
                   isLoading={configLoading}
                   pluginStatus={plugin.status}
@@ -253,36 +282,6 @@ export function PluginSettings() {
                 </p>
               ) : null}
             </section>
-            <details className="space-y-5">
-              <summary className="cursor-pointer text-sm font-medium text-muted-foreground">About {plugin.manifestJson.displayName}</summary>
-              <div className="grid gap-8 lg:grid-cols-(--gtc-52)">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                  <p className="text-sm leading-6 text-foreground/90">{pluginDescription}</p>
-                </div>
-                <div className="space-y-4 text-sm">
-                  <div className="space-y-1.5">
-                    <h3 className="font-medium text-muted-foreground">Author</h3>
-                    <p className="text-foreground">{plugin.manifestJson.author}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-muted-foreground">Categories</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {plugin.categories.length > 0 ? (
-                        plugin.categories.map((category) => (
-                          <Badge key={category} variant="outline" className="capitalize">
-                            {category}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-foreground">None</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </details>
-
           </div>
         </TabsContent>
 
@@ -933,7 +932,6 @@ function isLikelyAbsolutePath(pathValue: string) {
 interface PluginConfigFormProps {
   pluginId: string;
   companyId: string | null;
-  companyPrefix: string | null;
   schema: JsonSchemaNode;
   initialValues?: Record<string, unknown>;
   isLoading?: boolean;
@@ -950,7 +948,7 @@ interface PluginConfigFormProps {
  * Separated from PluginSettings to isolate re-render scope — only the form
  * re-renders on field changes, not the entire page.
  */
-function PluginConfigForm({ pluginId, companyId, companyPrefix, schema, initialValues, isLoading, pluginStatus, supportsConfigTest }: PluginConfigFormProps) {
+function PluginConfigForm({ pluginId, companyId, schema, initialValues, isLoading, pluginStatus, supportsConfigTest }: PluginConfigFormProps) {
   const queryClient = useQueryClient();
 
   // Form values: start with saved values, fall back to schema defaults
@@ -987,9 +985,6 @@ function PluginConfigForm({ pluginId, companyId, companyPrefix, schema, initialV
     ...getDefaultValues(schema),
     ...(initialValues ?? {}),
   });
-  const setup = getPluginSetup(schema);
-  const savedCredentialCount = setup ? countSetupCredentials(setup, initialValues ?? {}) : 0;
-  const callbackUrl = setup ? setupCallbackUrl(setup, values, companyPrefix, window.location.origin) : null;
 
   // Save mutation
   const saveMutation = useMutation({
@@ -1070,14 +1065,12 @@ function PluginConfigForm({ pluginId, companyId, companyPrefix, schema, initialV
 
   return (
     <div className="space-y-4">
-      {setup ? <PluginSetupGuide setup={setup} callbackUrl={callbackUrl} savedCredentialCount={savedCredentialCount} /> : null}
       <JsonSchemaForm
         schema={schema}
         values={values}
         onChange={handleChange}
         errors={errors}
         disabled={saveMutation.isPending}
-        advancedLabel={setup ? "Optional settings" : "Advanced options"}
       />
 
       {/* Status messages */}
@@ -1106,11 +1099,7 @@ function PluginConfigForm({ pluginId, companyId, companyPrefix, schema, initialV
       )}
 
       {/* Action buttons */}
-      {setup ? <div className="space-y-1 pt-2">
-        <h3 className="text-base font-semibold">3. Save and connect</h3>
-        <p className="text-sm text-muted-foreground">Save your credentials, check the configuration, then continue to connect your account.</p>
-      </div> : null}
-      <div className="flex flex-wrap items-center gap-2 pt-2">
+      <div className="flex items-center gap-2 pt-2">
         <Button
           onClick={handleSave}
           disabled={saveMutation.isPending || !isDirty}
@@ -1142,9 +1131,6 @@ function PluginConfigForm({ pluginId, companyId, companyPrefix, schema, initialV
             )}
           </Button>
         )}
-        {setup ? (callbackUrl && !isDirty && !saveMutation.isPending && savedCredentialCount === setup.credentialFields.length
-          ? <Button asChild variant="outline" size="sm"><a href={callbackUrl}>{setup.continueLabel}</a></Button>
-          : <Button variant="outline" size="sm" disabled title="Save your OAuth credentials first">{setup.continueLabel}</Button>) : null}
       </div>
     </div>
   );

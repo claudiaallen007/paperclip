@@ -71,16 +71,16 @@ describe("JsonSchemaForm secret-ref rendering", () => {
     vi.clearAllMocks();
   });
 
-  it("keeps credential order after JSONB reorders properties and forwards secret names", async () => {
+  it("derives secret names from their fields and omits raw credential inputs", async () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<JsonSchemaForm schema={{ type: "object", properties: {
-        publicOrigin: { type: "string", title: "Public origin", "x-paperclip-advanced": true, "x-paperclip-group": "Hosting", "x-paperclip-order": 3 },
-        googleClientSecret: { format: "secret-ref", title: "Client secret", anyOf: [{ type: "object", properties: { type: { const: "secret_ref" } } }], "x-paperclip-secret-name": "GTM_CLIP_GOOGLE_CLIENT_SECRET", "x-paperclip-order": 2 },
-        googleClientId: { format: "secret-ref", title: "Client ID", anyOf: [{ type: "object", properties: { type: { const: "secret_ref" } } }], "x-paperclip-secret-name": "GTM_CLIP_GOOGLE_CLIENT_ID", "x-paperclip-order": 1 },
+        publicOrigin: { type: "string", title: "Public origin", "x-paperclip-advanced": true, "x-paperclip-group": "Hosting" },
+        googleClientSecret: { format: "secret-ref", title: "Client secret", anyOf: [{ type: "object", properties: { type: { const: "secret_ref" } } }] },
+        googleClientId: { format: "secret-ref", title: "Client ID", anyOf: [{ type: "object", properties: { type: { const: "secret_ref" } } }] },
       } }} values={{}} onChange={() => {}} advancedLabel="Optional settings" />);
     });
-    expect(Array.from(container.querySelectorAll("select")).map((select) => select.dataset.suggestedName)).toEqual(["GTM_CLIP_GOOGLE_CLIENT_ID", "GTM_CLIP_GOOGLE_CLIENT_SECRET"]);
+    expect(Array.from(container.querySelectorAll("select")).map((select) => select.dataset.suggestedName)).toEqual(["GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_ID"]);
     expect(container.textContent).not.toContain("Or paste a raw value");
     expect(container.textContent).not.toContain("Public origin");
     await act(async () => { Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Optional settings")!.click(); });

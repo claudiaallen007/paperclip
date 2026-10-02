@@ -4,11 +4,10 @@ import { validateInstanceConfig } from "../services/plugin-config-validator.js";
 describe("plugin settings schema annotations", () => {
   const schema = {
     type: "object",
-    "x-paperclip-setup": { instructions: ["Create an OAuth client"] },
     properties: {
-      publicOrigin: { type: "string", format: "uri", "x-paperclip-order": 3, "x-paperclip-advanced": true, "x-paperclip-group": "Hosting" },
+      publicOrigin: { type: "string", format: "uri", "x-paperclip-advanced": true, "x-paperclip-group": "Hosting" },
       clientId: {
-        type: "object", format: "secret-ref", "x-paperclip-secret-name": "GTM_CLIP_GOOGLE_CLIENT_ID", "x-paperclip-order": 1,
+        type: "object", format: "secret-ref", "x-paperclip-secret-name": "GTM_CLIP_GOOGLE_CLIENT_ID",
         required: ["type", "secretId"],
         properties: { type: { const: "secret_ref" }, secretId: { type: "string", format: "uuid" } },
         additionalProperties: false,

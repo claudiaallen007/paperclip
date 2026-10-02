@@ -42,10 +42,8 @@ export function validateInstanceConfig(
   // Keep strict schema validation enabled so typos in validation rules still fail.
   for (const [keyword, schemaType] of [
     ["x-paperclip-secret-name", "string"],
-    ["x-paperclip-order", "number"],
     ["x-paperclip-advanced", "boolean"],
     ["x-paperclip-group", "string"],
-    ["x-paperclip-setup", "object"],
   ] as const) {
     ajv.addKeyword({ keyword, schemaType, valid: true });
   }

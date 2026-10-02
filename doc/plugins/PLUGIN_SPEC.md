@@ -1240,9 +1240,7 @@ The auto-generated form supports:
 The host explicitly registers these display-only schema annotations with its strict config validator:
 
 - `x-paperclip-secret-name` (string): editable initial name for a secret created from that field; otherwise the field path supplies a name.
-- `x-paperclip-order` (number): ascending display order, independent of JSON object key ordering in storage.
 - `x-paperclip-advanced` (boolean) and `x-paperclip-group` (string): optional disclosure and field grouping.
-- `x-paperclip-setup` (object on the root schema): OAuth setup guidance with `instructions` (strings), `links` (`{ label, url }` HTTPS links), `callbackRoute` (relative company route such as `gtm/mailbox`), `originField` (configuration property), `credentialFields` (secret-ref property names), and `continueLabel`. The host shows a company callback URI using the configured origin or browser origin, counts saved credential references, and enables the continuation link after all credentials are saved with no pending changes.
 
 These hints do not weaken the underlying schema constraints. Plugins using them require host support for the annotations; older strict validators reject unknown keywords. Structured secret-ref fields omit the raw-value input, and the create dialog focuses the credential value when a name is prefilled.
 

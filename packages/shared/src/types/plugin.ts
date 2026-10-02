@@ -58,17 +58,7 @@ export type JsonSchema = {
   "x-paperclip-group"?: string;
   /** Editable name prefilled when creating a secret for this field. */
   "x-paperclip-secret-name"?: string;
-  /** Display order, retained even when PostgreSQL JSONB reorders properties. */
-  "x-paperclip-order"?: number;
-  /** Optional OAuth setup instructions rendered before the configuration fields. */
-  "x-paperclip-setup"?: {
-    instructions: string[];
-    links: Array<{ label: string; url: string }>;
-    callbackRoute: string;
-    originField: string;
-    credentialFields: string[];
-    continueLabel: string;
-  };
+
   [key: string]: unknown;
 };
 

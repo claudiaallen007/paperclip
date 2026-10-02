@@ -91,7 +91,6 @@ export interface JsonSchemaNode {
    */
   "x-paperclip-group"?: string;
   "x-paperclip-secret-name"?: string;
-  "x-paperclip-order"?: number;
 
   // Allow extra keys
   [key: string]: unknown;
@@ -1272,10 +1271,7 @@ export function JsonSchemaForm({
     const advancedKeys = new Set<string>();
     const DEFAULT_GROUP = "More options";
 
-    // JSONB does not retain object insertion order. Explicit order survives storage.
-    const orderedEntries = Object.entries(properties).sort(([, a], [, b]) =>
-      (a["x-paperclip-order"] ?? Number.MAX_SAFE_INTEGER) - (b["x-paperclip-order"] ?? Number.MAX_SAFE_INTEGER));
-    for (const entry of orderedEntries) {
+    for (const entry of Object.entries(properties)) {
       const [key, propSchema] = entry;
       if (propSchema["x-paperclip-advanced"] === true) {
         advancedKeys.add(key);
