@@ -38,6 +38,17 @@ export function validateInstanceConfig(
   // hold a Paperclip secret UUID rather than a raw value. The format is a UI
   // hint only — UUID validation happens in the secrets handler at resolve time.
   ajv.addFormat("secret-ref", { validate: () => true });
+  // Explicitly allow the display-only hints understood by the settings form.
+  // Keep strict schema validation enabled so typos in validation rules still fail.
+  for (const [keyword, schemaType] of [
+    ["x-paperclip-secret-name", "string"],
+    ["x-paperclip-order", "number"],
+    ["x-paperclip-advanced", "boolean"],
+    ["x-paperclip-group", "string"],
+    ["x-paperclip-setup", "object"],
+  ] as const) {
+    ajv.addKeyword({ keyword, schemaType, valid: true });
+  }
   const validate = ajv.compile(schema);
   const valid = validate(configJson);
 

@@ -50,6 +50,7 @@ export interface JsonSchemaNode {
   examples?: unknown[];
   const?: unknown;
   format?: string;
+  anyOf?: JsonSchemaNode[];
 
   // String constraints
   minLength?: number;
@@ -89,6 +90,8 @@ export interface JsonSchemaNode {
    * `x-paperclip-advanced` is not true.
    */
   "x-paperclip-group"?: string;
+  "x-paperclip-secret-name"?: string;
+  "x-paperclip-order"?: number;
 
   // Allow extra keys
   [key: string]: unknown;
@@ -562,6 +565,8 @@ const SecretField = React.memo(({
   error,
   defaultValue,
   maxLength,
+  suggestedName,
+  allowRawValue = true,
 }: {
   value: unknown;
   onChange: (val: unknown) => void;
@@ -572,6 +577,8 @@ const SecretField = React.memo(({
   error?: string;
   defaultValue?: unknown;
   maxLength?: number;
+  suggestedName?: string;
+  allowRawValue?: boolean;
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const isTextArea = maxLength != null && maxLength > TEXTAREA_THRESHOLD;
@@ -710,12 +717,14 @@ const SecretField = React.memo(({
           value={bindingValue}
           onChange={handlePickerChange}
           label=""
+          secretLabel={label}
+          suggestedName={suggestedName}
           placeholder="Select an existing secret"
           allowVersionSelector={false}
-          emptyHint="No active secrets yet. Create one or paste a raw value below."
+          emptyHint={allowRawValue ? "No active secrets yet. Create one or paste a raw value below." : "No secrets yet. Create one using the button above."}
           disabled={disabled}
         />
-        {!isBoundToSecret ? (
+        {!isBoundToSecret && allowRawValue ? (
           showRawInput ? (
             <div className="space-y-1">
               {rawInput}
@@ -1127,6 +1136,8 @@ const FormField = React.memo(({
           error={error}
           defaultValue={propSchema.default}
           maxLength={typeof propSchema.maxLength === "number" ? propSchema.maxLength : undefined}
+          suggestedName={propSchema["x-paperclip-secret-name"] || path.split("/").filter(Boolean).join("_").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase()}
+          allowRawValue={!propSchema.anyOf?.some((branch) => branch.properties?.type?.const === "secret_ref")}
         />
       );
 
@@ -1261,7 +1272,10 @@ export function JsonSchemaForm({
     const advancedKeys = new Set<string>();
     const DEFAULT_GROUP = "More options";
 
-    for (const entry of Object.entries(properties)) {
+    // JSONB does not retain object insertion order. Explicit order survives storage.
+    const orderedEntries = Object.entries(properties).sort(([, a], [, b]) =>
+      (a["x-paperclip-order"] ?? Number.MAX_SAFE_INTEGER) - (b["x-paperclip-order"] ?? Number.MAX_SAFE_INTEGER));
+    for (const entry of orderedEntries) {
       const [key, propSchema] = entry;
       if (propSchema["x-paperclip-advanced"] === true) {
         advancedKeys.add(key);

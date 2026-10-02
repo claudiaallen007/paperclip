@@ -8,7 +8,7 @@ import { useCompany } from "../context/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "../lib/utils";
 
 export interface SecretBindingValue {
@@ -51,6 +51,10 @@ interface SecretBindingPickerProps {
   emptyHint?: string;
   className?: string;
   disabled?: boolean;
+  /** Suggested, editable name for a new secret; never a credential value. */
+  suggestedName?: string;
+  /** Field context when the picker is rendered inside a separate field label. */
+  secretLabel?: string;
   /**
    * Optional whitelist of secret statuses to show. Defaults to "active".
    * Pass null to disable the filter and show every secret in the company.
@@ -92,6 +96,8 @@ export function SecretBindingPicker({
   emptyHint = "No matching secrets. Create one to bind it here.",
   className,
   disabled,
+  suggestedName,
+  secretLabel,
   statusFilter = ["active"],
 }: SecretBindingPickerProps) {
   const queryClient = useQueryClient();
@@ -101,6 +107,24 @@ export function SecretBindingPicker({
   const [createValue, setCreateValue] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const fieldLabel = secretLabel || (label !== "Secret" ? label : "");
+  const initialName = suggestedName?.trim() || fieldLabel.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").toUpperCase();
+
+  function openCreateDialog() {
+    setCreateName(initialName);
+    setCreateValue("");
+    setCreateDescription("");
+    setCreateError(null);
+    setCreateOpen(true);
+  }
+
+  function handleCreateOpenChange(open: boolean) {
+    setCreateOpen(open);
+    if (!open) {
+      setCreateValue("");
+      setCreateError(null);
+    }
+  }
 
   const secretsQuery = useQuery({
     queryKey: selectedCompanyId
@@ -241,11 +265,12 @@ export function SecretBindingPicker({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setCreateOpen(true)}
+          onClick={openCreateDialog}
           disabled={disabled || !selectedCompanyId}
-          aria-label="Create secret"
+          aria-label={fieldLabel ? `Create secret for ${fieldLabel}` : "Create secret"}
         >
           <Plus className="h-3.5 w-3.5" />
+          {secretLabel ? "Create secret" : null}
         </Button>
       </div>
 
@@ -282,10 +307,11 @@ export function SecretBindingPicker({
         <p className="text-(length:--text-micro) text-muted-foreground">{emptyHint}</p>
       ) : null}
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={handleCreateOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create new secret</DialogTitle>
+            <DialogDescription>{fieldLabel ? `Add the value for ${fieldLabel}. You can change the suggested name.` : "Store a credential securely and bind it to this field."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -295,12 +321,13 @@ export function SecretBindingPicker({
                 value={createName}
                 onChange={(event) => setCreateName(event.target.value)}
                 placeholder="OPENAI_API_KEY"
-                autoFocus
+                autoFocus={!initialName}
               />
             </div>
             <div>
               <label className="text-xs font-medium text-foreground/80" htmlFor="secret-value">Value</label>
               <Textarea
+                autoFocus={Boolean(initialName)}
                 id="secret-value"
                 value={createValue}
                 onChange={(event) => setCreateValue(event.target.value)}
@@ -324,7 +351,7 @@ export function SecretBindingPicker({
             {createError ? <p className="text-xs text-destructive">{createError}</p> : null}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleCreateOpenChange(false)}>Cancel</Button>
             <Button
               type="button"
               onClick={() => createMutation.mutate()}
