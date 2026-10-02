@@ -857,6 +857,7 @@ The host enforces capabilities in the SDK layer and refuses calls outside the gr
 - `local.folders`
 - `http.outbound`
 - `secrets.read-ref`
+- `secrets.create-managed`
 - `environment.drivers.register`
 
 ### Agent Tools
@@ -1457,6 +1458,21 @@ Rules:
    - activity logs
    - webhook delivery rows
    - error messages
+
+### 22.1 Plugin-managed OAuth credentials
+
+With `secrets.create-managed`, a worker can call
+`ctx.secrets.createManaged({ companyId, name, key?, value, description?, configPath })`.
+The host requires an authorized company invocation, checks plugin availability,
+and creates a new `local_encrypted` secret plus its plugin binding in one database
+transaction. It returns only `{ type: "secret_ref", secretId, version: "latest" }`
+and writes a `secret.created` activity entry without the value.
+
+The host owns the reserved binding path `$managed.<secretId>.<configPath>`.
+`ctx.secrets.resolve(ref, { companyId, configPath })` resolves it only for the same
+plugin and company. Ordinary plugin configuration saves preserve these runtime
+bindings and cannot write to the reserved namespace. Each creation uses a new
+binding, so a failed reconnect cannot revoke the previous connection's token.
 
 ## 23. Auditing
 

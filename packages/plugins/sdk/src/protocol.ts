@@ -1625,6 +1625,10 @@ export interface WorkerToHostMethods {
   ];
 
   // Secrets
+  "secrets.createManaged": [
+    params: Parameters<import("./types.js").PluginSecretsClient["createManaged"]>[0],
+    result: EnvSecretRefBinding,
+  ];
   "secrets.resolve": [
     params: { secretRef: string | EnvSecretRefBinding; companyId?: string; configPath?: string },
     result: string,

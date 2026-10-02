@@ -418,3 +418,21 @@ describe("createHostClientHandlers capability gating for LOOA-641 methods", () =
     expect(list).not.toHaveBeenCalled();
   });
 });
+
+
+describe("managed plugin secrets", () => {
+  it("requires write capability and the host company scope before creating a secret", async () => {
+    const createManaged = vi.fn(async () => ({ type: "secret_ref", secretId: "new-secret", version: "latest" }));
+    const services = { secrets: { createManaged } } as unknown as HostServices;
+    const params = { companyId: "company-a", name: "OAuth token", value: "test-token", configPath: "gmail.refreshToken" };
+    const context = { invocationScope: { companyId: "company-a" } };
+    const denied = createHostClientHandlers({ pluginId: "plugin-a", capabilities: ["secrets.read-ref"], services });
+    await expect(denied["secrets.createManaged"](params, context)).rejects.toBeInstanceOf(CapabilityDeniedError);
+    const allowed = createHostClientHandlers({ pluginId: "plugin-a", capabilities: ["secrets.create-managed"], services });
+    await expect(allowed["secrets.createManaged"](params)).rejects.toBeInstanceOf(InvocationScopeDeniedError);
+    await expect(allowed["secrets.createManaged"]({ ...params, companyId: "company-b" }, context)).rejects.toBeInstanceOf(InvocationScopeDeniedError);
+    expect(createManaged).not.toHaveBeenCalled();
+    await expect(allowed["secrets.createManaged"](params, context)).resolves.toMatchObject({ type: "secret_ref", secretId: "new-secret" });
+    expect(createManaged).toHaveBeenCalledWith(params, context);
+  });
+});

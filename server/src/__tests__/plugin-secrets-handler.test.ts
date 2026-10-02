@@ -19,6 +19,7 @@ import {
   createPluginSecretsHandler,
   extractSecretRefBindingsFromConfig,
 } from "../services/plugin-secrets-handler.js";
+import { pluginCapabilityValidator } from "../services/plugin-capability-validator.js";
 import { secretService } from "../services/secrets.js";
 
 const pluginId = "11111111-1111-4111-8111-111111111111";
@@ -52,6 +53,13 @@ describe("extractSecretRefBindingsFromConfig", () => {
 });
 
 describe("createPluginSecretsHandler fail-closed guards", () => {
+  it("requires the managed creation capability in the host operation gate", () => {
+    const validator = pluginCapabilityValidator();
+    const manifest = { id: "test", capabilities: ["secrets.read-ref"] } as Parameters<typeof validator.assertOperation>[0];
+    expect(() => validator.assertOperation(manifest, "secrets.createManaged")).toThrow(/secrets.create-managed/);
+    expect(() => validator.assertOperation({ ...manifest, capabilities: ["secrets.create-managed"] }, "secrets.createManaged")).not.toThrow();
+  });
+
   it("requires company context before touching the database", async () => {
     const db = { select: vi.fn(() => { throw new Error("db should not be touched"); }) };
     const handler = createPluginSecretsHandler({ db: db as never, pluginId });
@@ -143,6 +151,34 @@ describeEmbeddedPostgres("createPluginSecretsHandler shared vault integration", 
       installOrder: 1,
     });
   }
+
+  it("encrypts managed tokens, preserves bindings across config saves and isolates companies/plugins", async () => {
+    await seedPlugin();
+    const companyId = await seedCompany("Managed token company");
+    const otherCompany = await seedCompany("Other company");
+    const handler = createPluginSecretsHandler({ db, pluginId });
+    const input = { companyId, name: "Gmail token", value: "test-refresh-token", configPath: "gmail.refreshToken" };
+    const ref = await handler.createManaged(input);
+    expect(ref).toEqual({ type: "secret_ref", secretId: expect.any(String), version: "latest" });
+    const stored = await db.select().from(companySecretVersions).where(eq(companySecretVersions.secretId, ref.secretId));
+    expect(stored).toHaveLength(1);
+    expect(JSON.stringify(stored)).not.toContain(input.value);
+    await expect(handler.resolve({ companyId, secretRef: ref, configPath: input.configPath })).resolves.toBe(input.value);
+    await expect(handler.resolve({ companyId: otherCompany, secretRef: ref, configPath: input.configPath })).rejects.toThrow(/not bound/i);
+    const otherPlugin = createPluginSecretsHandler({ db, pluginId: randomUUID() });
+    await expect(otherPlugin.resolve({ companyId, secretRef: ref, configPath: input.configPath })).rejects.toThrow(/not bound/i);
+    await expect(handler.resolve({ companyId, secretRef: ref, configPath: "wrong.path" })).rejects.toThrow(/not bound/i);
+    const svc = secretService(db);
+    await svc.syncSecretRefsForTarget(companyId, { targetType: "plugin", targetId: pluginId }, [], { replaceAll: true });
+    await expect(handler.resolve({ companyId, secretRef: ref, configPath: input.configPath })).resolves.toBe(input.value);
+    const second = await handler.createManaged({ ...input, name: "Gmail reconnect", value: "replacement-token" });
+    expect(second.secretId).not.toBe(ref.secretId);
+    await expect(handler.resolve({ companyId, secretRef: second, configPath: input.configPath })).resolves.toBe("replacement-token");
+    await expect(handler.resolve({ companyId, secretRef: ref, configPath: input.configPath })).resolves.toBe(input.value);
+    await expect(svc.syncSecretRefsForTarget(companyId, { targetType: "plugin", targetId: pluginId }, [
+      { secretId: ref.secretId, configPath: "$managed.spoofed" },
+    ], { replaceAll: true })).rejects.toThrow(/reserved/i);
+  });
 
   it("resolves bound plugin refs through secretService and emits plugin_worker access events", async () => {
     await seedPlugin();

@@ -619,6 +619,9 @@ export function startWorkerRpcHost(options: WorkerRpcHostOptions): WorkerRpcHost
       },
 
       secrets: {
+        async createManaged(input) {
+          return callHost("secrets.createManaged", input);
+        },
         async resolve(secretRef, options = {}): Promise<string> {
           return callHost("secrets.resolve", {
             secretRef,

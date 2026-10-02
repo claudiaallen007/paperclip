@@ -1596,6 +1596,17 @@ export function buildHostServices(
     },
 
     secrets: {
+      async createManaged(params) {
+        const companyId = ensureCompanyId(params.companyId);
+        await ensurePluginAvailableForCompany(companyId);
+        const ref = await secretsHandler.createManaged({ ...params, companyId });
+        await logActivity(db, {
+          companyId, actorType: "plugin", actorId: pluginId,
+          action: "secret.created", entityType: "secret", entityId: ref.secretId,
+          details: { pluginId, configPath: params.configPath, provider: "local_encrypted" },
+        });
+        return ref;
+      },
       async resolve(params) {
         const companyId = ensureCompanyId(params.companyId);
         await ensurePluginAvailableForCompany(companyId);

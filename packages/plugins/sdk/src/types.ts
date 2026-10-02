@@ -666,6 +666,22 @@ export interface PluginHttpClient {
  */
 export interface PluginSecretsClient {
   /**
+   * Encrypt a new company secret and bind it exclusively to this plugin.
+   * Requires `secrets.create-managed` and a host-authorized company invocation.
+   * Only the reference is returned; keep the value out of config, logs and UI.
+   * Managed bindings survive config saves. Each call creates a new secret.
+   */
+  createManaged(input: {
+    companyId: string;
+    name: string;
+    key?: string;
+    value: string;
+    description?: string;
+    configPath: string;
+  }): Promise<EnvSecretRefBinding>;
+
+
+  /**
    * Resolve a secret reference to its current value.
    *
    * The reference must be the shared `secret_ref` object shape from plugin

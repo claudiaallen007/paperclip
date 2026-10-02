@@ -3,7 +3,7 @@
  * `secret_ref` config bindings only with an explicit company context.
  */
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { companySecretBindings } from "@paperclipai/db";
 import type { EnvSecretRefBinding, SecretProjectionClass, SecretVersionSelector } from "@paperclipai/shared";
@@ -169,6 +169,10 @@ export interface PluginSecretsHandlerOptions {
 }
 
 export interface PluginSecretsService {
+  createManaged(params: {
+    companyId: string; name: string; key?: string; value: string;
+    description?: string; configPath: string;
+  }): Promise<EnvSecretRefBinding>;
   resolve(params: PluginSecretsResolveParams): Promise<string>;
 }
 
@@ -207,7 +211,10 @@ export function createPluginSecretsHandler(
       eq(companySecretBindings.secretId, input.secretId),
     ];
     if (input.configPath) {
-      conditions.push(eq(companySecretBindings.configPath, input.configPath));
+      conditions.push(or(
+        eq(companySecretBindings.configPath, input.configPath),
+        eq(companySecretBindings.configPath, `$managed.${input.secretId}.${input.configPath}`),
+      )!);
     }
     const rows = await db
       .select()
@@ -220,6 +227,35 @@ export function createPluginSecretsHandler(
   }
 
   return {
+    async createManaged(params) {
+      const companyId = requireCompanyId(params.companyId);
+      if (typeof params.name !== "string" || !params.name.trim() || params.name.length > 200) {
+        throw unprocessable("Managed secret name must be between 1 and 200 characters");
+      }
+      if (typeof params.value !== "string" || !params.value || params.value.length > 65536) {
+        throw unprocessable("Managed secret value must be between 1 and 65536 characters");
+      }
+      if (typeof params.configPath !== "string" || !/^[a-zA-Z][a-zA-Z0-9_.-]{0,199}$/.test(params.configPath)) {
+        throw unprocessable("Managed secret configPath is invalid");
+      }
+      if (!rateLimiter.check(`create:${companyId}:${pluginId}`)) {
+        throw unprocessable("Too many managed secret creation attempts");
+      }
+      return db.transaction(async (tx) => {
+        const svc = secretService(tx);
+        const secret = await svc.create(companyId, {
+          name: params.name.trim(), key: params.key, value: params.value,
+          description: params.description, provider: "local_encrypted", managedMode: "paperclip_managed",
+        });
+        // A unique, reserved path keeps config saves and reconnects from revoking
+        // the current connection's binding before its replacement has been saved.
+        await svc.createBinding({
+          companyId, secretId: secret.id, targetType: "plugin", targetId: pluginId,
+          configPath: `$managed.${secret.id}.${params.configPath}`, versionSelector: "latest",
+        });
+        return { type: "secret_ref", secretId: secret.id, version: "latest" };
+      });
+    },
     async resolve(params: PluginSecretsResolveParams): Promise<string> {
       if (typeof params.secretRef === "string") {
         throw invalidSecretRef(params.secretRef.trim() || "<empty>");

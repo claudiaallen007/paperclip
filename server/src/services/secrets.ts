@@ -4678,6 +4678,9 @@ export function secretService(db: Db | DbTransaction) {
         projectionAllowlistKey: string | null;
       }> = [];
       for (const ref of refs) {
+        if (target.targetType === "plugin" && ref.configPath.startsWith("$managed.")) {
+          throw unprocessable("Managed plugin secret paths are reserved for the host");
+        }
         await assertSecretInCompany(companyId, ref.secretId);
         assertSecretBindingConfigPath({ targetType: target.targetType, configPath: ref.configPath });
         const projectionClass = ref.projectionClass ?? "unclassified";
@@ -4710,6 +4713,7 @@ export function secretService(db: Db | DbTransaction) {
                 eq(companySecretBindings.companyId, companyId),
                 eq(companySecretBindings.targetType, target.targetType),
                 eq(companySecretBindings.targetId, target.targetId),
+                target.targetType === "plugin" ? notLike(companySecretBindings.configPath, "$managed.%") : undefined,
               ),
             );
         } else if (pathPrefixes.length > 0) {
@@ -4721,6 +4725,7 @@ export function secretService(db: Db | DbTransaction) {
                   eq(companySecretBindings.companyId, companyId),
                   eq(companySecretBindings.targetType, target.targetType),
                   eq(companySecretBindings.targetId, target.targetId),
+                  target.targetType === "plugin" ? notLike(companySecretBindings.configPath, "$managed.%") : undefined,
                   or(
                     eq(companySecretBindings.configPath, pathPrefix),
                     like(companySecretBindings.configPath, `${pathPrefix}.%`),
@@ -4736,6 +4741,7 @@ export function secretService(db: Db | DbTransaction) {
                 eq(companySecretBindings.companyId, companyId),
                 eq(companySecretBindings.targetType, target.targetType),
                 eq(companySecretBindings.targetId, target.targetId),
+                target.targetType === "plugin" ? notLike(companySecretBindings.configPath, "$managed.%") : undefined,
               ),
             );
         }

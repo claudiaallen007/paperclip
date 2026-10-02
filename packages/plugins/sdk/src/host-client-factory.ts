@@ -148,8 +148,12 @@ export interface HostServices {
     fetch(params: WorkerToHostMethods["http.fetch"][0]): Promise<WorkerToHostMethods["http.fetch"][1]>;
   };
 
-  /** Provides `secrets.resolve`. */
+  /** Provides company-scoped secret storage and resolution. */
   secrets: {
+    createManaged(
+      params: WorkerToHostMethods["secrets.createManaged"][0],
+      context?: WorkerHostCallContext,
+    ): Promise<WorkerToHostMethods["secrets.createManaged"][1]>;
     resolve(
       params: WorkerToHostMethods["secrets.resolve"][0],
       context?: WorkerHostCallContext,
@@ -411,6 +415,7 @@ const METHOD_CAPABILITY_MAP: Record<WorkerToHostMethodName, PluginCapability | n
 
   // Secrets
   "secrets.resolve": "secrets.read-ref",
+  "secrets.createManaged": "secrets.create-managed",
 
   // Activity
   "activity.log": "activity.log.write",
@@ -775,6 +780,10 @@ export function createHostClientHandlers(
     }),
 
     // Secrets
+    "secrets.createManaged": gated("secrets.createManaged", async (params, context) => {
+      const companyId = resolveRequiredCompanyId("secrets.createManaged", params, context);
+      return services.secrets.createManaged({ ...params, companyId }, context);
+    }),
     "secrets.resolve": gated("secrets.resolve", async (params, context) => {
       const companyId = resolveRequiredCompanyId("secrets.resolve", params, context);
       return services.secrets.resolve({ ...params, companyId }, context);

@@ -909,6 +909,10 @@ export function createTestHarness(options: TestHarnessOptions): TestHarness {
       },
     },
     secrets: {
+      async createManaged() {
+        requireCapability(manifest, capabilitySet, "secrets.create-managed");
+        return { type: "secret_ref", secretId: crypto.randomUUID(), version: "latest" };
+      },
       async resolve(secretRef) {
         requireCapability(manifest, capabilitySet, "secrets.read-ref");
         return `resolved:${secretRef}`;
